@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { createNote } from "../../../lib/notesService";
 
 export default function TextInput({ onSaveText }) {
   const [text, setText] = useState("");
   const [isAutosaving, setIsAutosaving] = useState(false);
   const [autosaveComplete, setAutosaveComplete] = useState(false);
+  const [error, setError] = useState(null);
   const autosaveTimerRef = useRef(null);
 
   // Setup autosave timer when text changes
@@ -19,17 +21,33 @@ export default function TextInput({ onSaveText }) {
       autosaveTimerRef.current = setTimeout(() => {
         setIsAutosaving(true);
         
-        // Simulate network delay for autosave
-        setTimeout(() => {
-          handleSaveText();
-          setIsAutosaving(false);
-          setAutosaveComplete(true);
-          
-          // Reset autosave complete status after 2 seconds
-          setTimeout(() => {
-            setAutosaveComplete(false);
-          }, 2000);
-        }, 1500);
+        // Save the text to Supabase
+        createNote(text)
+          .then(newNote => {
+            // Transform the note object to handle different column names
+            const transformedNote = {
+              ...newNote,
+              // Handle both possible column names
+              autoDelete: newNote.autoDelete !== undefined ? newNote.autoDelete : newNote.auto_delete,
+              createdAt: newNote.createdAt || new Date(newNote.created_at).getTime(),
+            };
+            
+            // Add the new note to the local state via callback
+            onSaveText(transformedNote);
+            setText("");
+            setIsAutosaving(false);
+            setAutosaveComplete(true);
+            
+            // Reset autosave complete status after 2 seconds
+            setTimeout(() => {
+              setAutosaveComplete(false);
+            }, 2000);
+          })
+          .catch(err => {
+            console.error("Error saving note:", err);
+            setError("Failed to save note. Please try again.");
+            setIsAutosaving(false);
+          });
       }, 5000);
     }
     
@@ -39,7 +57,7 @@ export default function TextInput({ onSaveText }) {
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [text]);
+  }, [text, onSaveText]);
 
   // Handle key press in textarea
   const handleKeyDown = (e) => {
@@ -50,17 +68,38 @@ export default function TextInput({ onSaveText }) {
   };
 
   // Handle saving text
-  const handleSaveText = () => {
+  const handleSaveText = async () => {
     if (text.trim()) {
-      onSaveText(text);
-      setText("");
-    }
-  };
-
-  // Handle manual process button click
-  const handleProcessText = () => {
-    if (text.trim()) {
-      handleSaveText();
+      setError(null);
+      setIsAutosaving(true);
+      
+      try {
+        // Save to Supabase
+        const newNote = await createNote(text);
+        
+        // Transform the note object to handle different column names
+        const transformedNote = {
+          ...newNote,
+          // Handle both possible column names
+          autoDelete: newNote.autoDelete !== undefined ? newNote.autoDelete : newNote.auto_delete,
+          createdAt: newNote.createdAt || new Date(newNote.created_at).getTime(),
+        };
+        
+        // Add to local state via callback
+        onSaveText(transformedNote);
+        setText("");
+        setIsAutosaving(false);
+        setAutosaveComplete(true);
+        
+        // Reset autosave complete status after 2 seconds
+        setTimeout(() => {
+          setAutosaveComplete(false);
+        }, 2000);
+      } catch (err) {
+        console.error("Error saving note:", err);
+        setError("Failed to save note. Please try again.");
+        setIsAutosaving(false);
+      }
     }
   };
 
@@ -77,7 +116,7 @@ export default function TextInput({ onSaveText }) {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Autosaving...
+              Saving...
             </div>
           )}
           {autosaveComplete && (
@@ -85,11 +124,17 @@ export default function TextInput({ onSaveText }) {
               <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
               </svg>
-              Autosaved
+              Saved
             </div>
           )}
         </div>
       </div>
+      
+      {error && (
+        <div className="mt-2 mb-2 text-sm text-red-600 dark:text-red-400">
+          {error}
+        </div>
+      )}
       
       <textarea 
         value={text}
@@ -101,10 +146,10 @@ export default function TextInput({ onSaveText }) {
       <div className="flex justify-end mt-4">
         <button 
           className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-xl shadow transition text-md dark:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={!text.trim()}
-          onClick={handleProcessText}
+          disabled={!text.trim() || isAutosaving}
+          onClick={handleSaveText}
         >
-          Process
+          {isAutosaving ? "Saving..." : "Save"}
         </button>
       </div>
     </div>

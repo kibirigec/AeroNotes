@@ -11,9 +11,15 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
 
   // Calculate remaining time for auto-delete
   const getRemainingTime = (item) => {
-    if (!item.autoDelete) return null;
+    // Check both possible property names for autoDelete
+    const isAutoDelete = item.autoDelete !== undefined ? item.autoDelete : item.auto_delete;
+    if (!isAutoDelete) return null;
     
-    const elapsedTime = Date.now() - item.createdAt;
+    // Check both possible property names for createdAt
+    const createdTime = item.createdAt || (item.created_at ? new Date(item.created_at).getTime() : null);
+    if (!createdTime) return null;
+    
+    const elapsedTime = Date.now() - createdTime;
     const remainingTime = Math.max(0, 7000 - elapsedTime);
     
     // Return as seconds with one decimal place
@@ -56,7 +62,7 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
             <ul className="space-y-2">
               {texts.map((item, index) => (
                 <li key={item.id || index} className="p-3 bg-white/70 dark:bg-blue-900/40 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
-                  <span className="flex-1 pr-4">{item.text}</span>
+                  <span className="flex-1 pr-4">{item.content}</span>
                   <div className="flex items-center">
                     <div className="flex flex-col items-end mr-2">
                       <label htmlFor={`auto-delete-${index}`} className="text-sm text-blue-700 dark:text-blue-300">

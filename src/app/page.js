@@ -1,11 +1,19 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from 'next/navigation';
 import DarkModeToggle from "./components/DarkModeToggle";
 import TextInput from "./components/TextInput";
 import ImageGallery from "./components/ImageGallery";
 import StoredTexts from "./components/StoredTexts";
+import { useAuth } from "../../lib/AuthContext";
+import { fetchDocuments, createDocument, deleteDocument, toggleDocumentAutoDelete } from "../../lib/documentService";
+import { fetchNotes, createNote as saveNoteToDb, toggleNoteAutoDelete as toggleNoteAutoDeleteDb, deleteNote as deleteNoteDb } from "../../lib/notesService";
 
 export default function Home() {
+  // Auth state
+  const { user, isAuthenticated, loading, signOut } = useAuth();
+  const router = useRouter();
+  
   // Stored text entries with autoDelete property
   const [storedTexts, setStoredTexts] = useState([]);
   // Refs for auto-delete timers
@@ -13,14 +21,13 @@ export default function Home() {
   // Active section
   const [activeSection, setActiveSection] = useState("notes");
   // Documents with autoDelete property
-  const [documents, setDocuments] = useState([
-    { id: 1, title: "Document 1", lastEdited: 1, autoDelete: false },
-    { id: 2, title: "Document 2", lastEdited: 2, autoDelete: true, createdAt: Date.now() },
-    { id: 3, title: "Document 3", lastEdited: 3, autoDelete: false },
-    { id: 4, title: "Document 4", lastEdited: 4, autoDelete: true, createdAt: Date.now() }
-  ]);
+  const [documents, setDocuments] = useState([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
   // Refs for document auto-delete timers
   const docAutoDeleteTimersRef = useRef({});
+  
+  // State for loading notes
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   
   // Initial images for the gallery
   const initialImages = [
@@ -30,6 +37,31 @@ export default function Home() {
     { id: 4, url: "https://images.unsplash.com/photo-1682687220015-a1444e8d41a5", alt: "Sample image 4" },
     { id: 5, url: "https://images.unsplash.com/photo-1682686578707-140b042e8f19", alt: "Sample image 5" },
   ];
+
+  // Fetch initial notes from DB
+  useEffect(() => {
+    if (isAuthenticated) {
+      setIsLoadingNotes(true);
+      fetchNotes()
+        .then(notesFromDb => {
+          const formattedNotes = notesFromDb.map(note => ({
+            id: note.id,
+            content: note.content,
+            autoDelete: note.autoDelete !== undefined ? note.autoDelete : note.auto_delete,
+            createdAt: new Date(note.created_at).getTime()
+          }));
+          setStoredTexts(formattedNotes);
+        })
+        .catch(error => {
+          console.error("Error fetching initial notes:", error);
+        })
+        .finally(() => {
+          setIsLoadingNotes(false);
+        });
+    } else {
+      setStoredTexts([]);
+    }
+  }, [isAuthenticated]);
 
   // Manage auto-delete timers when storedTexts changes
   useEffect(() => {
@@ -68,7 +100,7 @@ export default function Home() {
         docAutoDeleteTimersRef.current[doc.id] = setTimeout(() => {
           // Filter out the document with this id
           setDocuments(prev => prev.filter(d => d.id !== doc.id));
-        }, 15000); // 15 seconds for documents
+        }, 15000);
       }
     });
 
@@ -80,17 +112,15 @@ export default function Home() {
   }, [documents]);
 
   // Store text and clear input
-  const handleSaveText = (text) => {
-    if (text.trim()) {
-      // Add new text with autoDelete flag set to true by default
-      const timestamp = Date.now();
-      setStoredTexts([...storedTexts, { 
-        text: text, 
-        autoDelete: true,
-        id: timestamp, // Add unique ID for better tracking
-        createdAt: timestamp
-      }]);
-    }
+  const handleSaveText = (noteFromInput) => {
+    const newNote = {
+      id: noteFromInput.id,
+      content: noteFromInput.content,
+      autoDelete: noteFromInput.autoDelete,
+      createdAt: noteFromInput.createdAt
+    };
+
+    setStoredTexts(prevTexts => [newNote, ...prevTexts]);
   };
 
   // Toggle autoDelete for a specific text entry
@@ -154,8 +184,70 @@ export default function Home() {
     return (remainingTime / 1000).toFixed(1);
   };
 
+  // Handle user logout
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+  
+  // Add a new document
+  const handleAddDocument = async () => {
+    try {
+      // Create a title with timestamp to make it unique
+      const title = `Document ${new Date().toLocaleTimeString()}`;
+      
+      // Create document in Supabase
+      const newDoc = await createDocument(title);
+      
+      // Add to local state with proper formatting
+      setDocuments(docs => [
+        {
+          id: newDoc.id,
+          title: newDoc.title,
+          lastEdited: 0, // Just created
+          autoDelete: newDoc.auto_delete,
+          createdAt: newDoc.auto_delete ? new Date(newDoc.created_at).getTime() : null
+        },
+        ...docs
+      ]);
+    } catch (error) {
+      console.error("Error adding document:", error);
+    }
+  };
+  
+  // Delete a document
+  const handleDeleteDocument = async (id) => {
+    try {
+      // Delete from Supabase
+      await deleteDocument(id);
+      
+      // Update local state
+      setDocuments(docs => docs.filter(d => d.id !== id));
+      
+      // Clear any auto-delete timer
+      if (docAutoDeleteTimersRef.current[id]) {
+        clearTimeout(docAutoDeleteTimersRef.current[id]);
+        delete docAutoDeleteTimersRef.current[id];
+      }
+    } catch (error) {
+      console.error("Error deleting document:", error);
+    }
+  };
+
   // Render content based on active section
   const renderContent = () => {
+    if (loading || isLoadingNotes) {
+      return (
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+        </div>
+      );
+    }
+    
     switch (activeSection) {
       case "notes":
         return (
@@ -174,7 +266,10 @@ export default function Home() {
           <div className="w-full bg-white/80 dark:bg-blue-950/70 rounded-2xl shadow-lg p-6 border border-blue-100 dark:border-blue-900">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100">Documents</h2>
-              <button className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg shadow transition text-sm dark:bg-blue-700 dark:hover:bg-blue-600 flex items-center gap-1">
+              <button 
+                onClick={handleAddDocument}
+                className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg shadow transition text-sm dark:bg-blue-700 dark:hover:bg-blue-600 flex items-center gap-1"
+              >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
                 </svg>
@@ -182,67 +277,86 @@ export default function Home() {
               </button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Documents with auto-delete toggle */}
-              {documents.map((doc) => (
-                <div key={doc.id} className="bg-white/90 dark:bg-blue-900/40 rounded-xl p-4 border border-blue-100 dark:border-blue-800 hover:shadow-md transition">
-                  <div className="flex items-start">
-                    <div className="bg-blue-100 dark:bg-blue-800/60 p-2 rounded-lg mr-3">
-                      <svg className="h-8 w-8 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-medium text-blue-800 dark:text-blue-100">{doc.title}</h3>
-                        <div className="flex items-center">
-                          <div className="flex flex-col items-end mr-2">
-                            <label htmlFor={`auto-delete-${doc.id}`} className="text-xs text-blue-700 dark:text-blue-300">
-                              Auto-delete
-                            </label>
-                            {doc.autoDelete && doc.createdAt && (
-                              <span className="text-xs text-orange-500 dark:text-orange-300 mt-0.5">
-                                Deleting in {getDocRemainingTime(doc)}s
-                              </span>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => handleToggleDocAutoDelete(doc.id)}
-                            className={`w-8 h-4 flex items-center rounded-full p-1 transition-colors duration-300 focus:outline-none ${
-                              doc.autoDelete 
-                                ? 'bg-green-500 dark:bg-green-600' 
-                                : 'bg-gray-300 dark:bg-gray-600'
-                            }`}
-                            aria-pressed={doc.autoDelete}
-                            aria-label={`Toggle auto-delete for ${doc.title}`}
-                          >
-                            <span
-                              className={`bg-white dark:bg-gray-200 w-3 h-3 rounded-full shadow-md transform transition-transform duration-300 ${
-                                doc.autoDelete ? 'translate-x-4' : 'translate-x-0'
+            {isLoadingDocuments ? (
+              <div className="flex justify-center items-center h-40">
+                <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Documents with auto-delete toggle */}
+                {documents.map((doc) => (
+                  <div key={doc.id} className="bg-white/90 dark:bg-blue-900/40 rounded-xl p-4 border border-blue-100 dark:border-blue-800 hover:shadow-md transition">
+                    <div className="flex items-start">
+                      <div className="bg-blue-100 dark:bg-blue-800/60 p-2 rounded-lg mr-3">
+                        <svg className="h-8 w-8 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-medium text-blue-800 dark:text-blue-100">{doc.title}</h3>
+                          <div className="flex items-center">
+                            <div className="flex flex-col items-end mr-2">
+                              <label htmlFor={`auto-delete-${doc.id}`} className="text-xs text-blue-700 dark:text-blue-300">
+                                Auto-delete
+                              </label>
+                              {doc.autoDelete && doc.createdAt && (
+                                <span className="text-xs text-orange-500 dark:text-orange-300 mt-0.5">
+                                  Deleting in {getDocRemainingTime(doc)}s
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleToggleDocAutoDelete(doc.id)}
+                              className={`w-8 h-4 flex items-center rounded-full p-1 transition-colors duration-300 focus:outline-none ${
+                                doc.autoDelete 
+                                  ? 'bg-green-500 dark:bg-green-600' 
+                                  : 'bg-gray-300 dark:bg-gray-600'
                               }`}
-                            />
+                              aria-pressed={doc.autoDelete}
+                              aria-label={`Toggle auto-delete for ${doc.title}`}
+                            >
+                              <span
+                                className={`bg-white dark:bg-gray-200 w-3 h-3 rounded-full shadow-md transform transition-transform duration-300 ${
+                                  doc.autoDelete ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">
+                          {doc.lastEdited === 0 
+                            ? 'Just created' 
+                            : `Last edited ${doc.lastEdited} day${doc.lastEdited !== 1 ? 's' : ''} ago`
+                          }
+                        </p>
+                        <div className="flex mt-3">
+                          <button className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 mr-3">Open</button>
+                          <button className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 mr-3">Share</button>
+                          <button 
+                            onClick={() => handleDeleteDocument(doc.id)}
+                            className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                          >
+                            Delete
                           </button>
                         </div>
                       </div>
-                      <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">Last edited {doc.lastEdited} day{doc.lastEdited !== 1 ? 's' : ''} ago</p>
-                      <div className="flex mt-3">
-                        <button className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 mr-3">Open</button>
-                        <button className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 mr-3">Share</button>
-                        <button className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">Delete</button>
-                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
             
-            {documents.length === 0 && (
+            {!isLoadingDocuments && documents.length === 0 && (
               <div className="flex flex-col items-center justify-center h-60 bg-white/50 dark:bg-blue-900/30 rounded-xl border border-dashed border-blue-200 dark:border-blue-800">
                 <svg className="h-12 w-12 text-blue-300 dark:text-blue-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
                 <p className="text-blue-500 dark:text-blue-400">No documents yet</p>
-                <button className="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg shadow transition text-sm dark:bg-blue-700 dark:hover:bg-blue-600">
+                <button 
+                  onClick={handleAddDocument}
+                  className="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg shadow transition text-sm dark:bg-blue-700 dark:hover:bg-blue-600"
+                >
                   Create Your First Document
                 </button>
               </div>
@@ -263,10 +377,32 @@ export default function Home() {
           <h1 className="text-2xl font-bold text-blue-900 dark:text-blue-100 tracking-tight">AeroNotes</h1>
         </div>
         <div className="flex items-center gap-4">
+          {/* User info if authenticated */}
+          {isAuthenticated && user && (
+            <span className="text-sm text-blue-700 dark:text-blue-300 hidden sm:inline-block">
+              {user.email}
+            </span>
+          )}
+          
           {/* Dark mode toggle button with animation */}
           <DarkModeToggle />
-          {/* Placeholder for user actions */}
-          <button className="rounded-full bg-blue-600 text-white px-4 py-2 font-medium shadow hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 transition">Login</button>
+          
+          {/* Login/Logout button */}
+          {isAuthenticated ? (
+            <button 
+              onClick={handleLogout}
+              className="rounded-full bg-blue-600 text-white px-4 py-2 font-medium shadow hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 transition"
+            >
+              Logout
+            </button>
+          ) : (
+            <button 
+              onClick={() => router.push('/login')}
+              className="rounded-full bg-blue-600 text-white px-4 py-2 font-medium shadow hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 transition"
+            >
+              Login
+            </button>
+          )}
         </div>
       </header>
 
@@ -362,8 +498,8 @@ export default function Home() {
         <main className="w-full flex flex-col items-center pt-8 px-4 sm:px-6 z-10 relative">
           <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-8">
             {renderContent()}
-        </div>
-      </main>
+          </div>
+        </main>
       </div>
     </div>
   );
