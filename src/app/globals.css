@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+:root {
+  --background: #e6f0ff;
+  --foreground: #0a2540;
+  --primary-blue: #2563eb;
+  --primary-blue-light: #60a5fa;
+  --primary-blue-dark: #1e40af;
+  --shape-blue: #b3d1ff;
+  --transition-speed: 1s;
+  --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark {
+  --background: #0a2540;
+  --foreground: #e6f0ff;
+  --primary-blue: #60a5fa;
+  --primary-blue-light: #2563eb;
+  --primary-blue-dark: #1e40af;
+  --shape-blue: #1e3a8a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  transition: color var(--transition-speed) var(--transition-timing), 
+              background-color var(--transition-speed) var(--transition-timing);
+}
+
+body {
+  background: linear-gradient(120deg, #e6f0ff 0%, #b3d1ff 100%);
+  color: var(--foreground);
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  transition: background var(--transition-speed) var(--transition-timing), 
+              color var(--transition-speed) var(--transition-timing);
+}
+
+.dark body {
+  background: linear-gradient(120deg, #0a2540 0%, #1e3a8a 100%);
+  color: var(--foreground);
+}
+
+/* Abstract floating shapes */
+body::before, body::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  filter: blur(32px);
+  opacity: 0.5;
+  transition: background var(--transition-speed) var(--transition-timing),
+              opacity var(--transition-speed) var(--transition-timing);
+}
+body::before {
+  width: 400px;
+  height: 300px;
+  top: -100px;
+  left: -120px;
+  background: var(--primary-blue-light);
+}
+body::after {
+  width: 300px;
+  height: 200px;
+  bottom: -80px;
+  right: -100px;
+  background: var(--shape-blue);
+}
+
+/* For system preference support, keeping this but making it change the HTML class */
+@media (prefers-color-scheme: dark) {
+  html:not(.light) {
+    --background: #0a2540;
+    --foreground: #e6f0ff;
+    --primary-blue: #60a5fa;
+    --primary-blue-light: #2563eb;
+    --primary-blue-dark: #1e40af;
+    --shape-blue: #1e3a8a;
+  }
+  html:not(.light) body {
+    background: linear-gradient(120deg, #0a2540 0%, #1e3a8a 100%);
+    color: var(--foreground);
+  }
+}
+
+/* Add transitions for all elements that might change with dark mode */
+*, *::before, *::after {
+  transition-property: none;
+}
+
+/* No specific transitions for elements */
+header, 
+main, 
+button, 
+div {
+  transition: none;
+}
