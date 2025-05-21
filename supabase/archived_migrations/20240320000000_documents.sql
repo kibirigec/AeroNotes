@@ -70,10 +70,14 @@ CREATE POLICY "Users can delete their own documents"
     ON documents FOR DELETE
     USING (auth.uid() = user_id);
 
+-- Enable RLS on storage.objects
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
 -- Enable RLS on storage.buckets
-ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for storage.buckets
+/*
 CREATE POLICY "Allow authenticated users to create buckets"
     ON storage.buckets FOR INSERT
     TO authenticated
@@ -83,14 +87,12 @@ CREATE POLICY "Allow authenticated users to manage buckets"
     ON storage.buckets FOR ALL
     TO authenticated
     USING (true);
+*/
 
 -- Create storage bucket for documents
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('aeronotes-documents', 'aeronotes-documents', true)
 ON CONFLICT (id) DO NOTHING;
-
--- Enable RLS on storage.objects
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
 -- Create storage policies for the documents bucket
 CREATE POLICY "Authenticated users can upload documents"

@@ -11,7 +11,7 @@ import {
   fetchDocuments, 
   createDocument, 
   deleteDocument as deleteDocumentService,
-  toggleDocumentAutoDelete as toggleDocAutoDeleteService // This service will simply toggle the boolean
+  toggleDocumentAutoDelete
 } from "../../lib/documentService";
 import { 
   fetchNotes, 
@@ -22,8 +22,9 @@ import {
 import { 
   fetchImageMetadata as fetchGalleryImages, 
   uploadImage as uploadGalleryImage, 
-  deleteImage as deleteGalleryImage 
-} from "../../lib/imageService"; // Correcting this path, assuming imageService.js is in lib/
+  deleteImage as deleteGalleryImage,
+  toggleImageAutoDelete
+} from "../../lib/imageService";
 
 export default function Home() {
   const { user, isAuthenticated, loading: authLoading, signOut, supabase } = useAuth();
@@ -31,7 +32,7 @@ export default function Home() {
 
   const [activeSection, setActiveSection] = useState("notes");
   const [storedTexts, setStoredTexts] = useState([]);
-  const [documents, setDocuments] = useState([]); // This will store full doc objects including scheduled_deletion
+  const [documents, setDocuments] = useState([]);
   const [galleryImages, setGalleryImages] = useState([]);
   
   const [isLoadingNotes, setIsLoadingNotes] = useState(true);
@@ -39,9 +40,8 @@ export default function Home() {
   const [isLoadingGalleryImages, setIsLoadingGalleryImages] = useState(true);
 
   const initialFetchDone = useRef(false);
-  const autoDeleteTimersRef = useRef({}); // For notes auto-delete (client-side)
+  const autoDeleteTimersRef = useRef({});
 
-  // Fetch initial data 
   useEffect(() => {
     if (user && !initialFetchDone.current) {
       const loadAllData = async () => {
@@ -51,28 +51,19 @@ export default function Home() {
         try {
           const [notesData, docsData, galleryData] = await Promise.all([
             fetchNotes(),
-            // Ensure fetchDocuments selects 'scheduled_deletion' and 'file_path'
-            fetchDocuments(), 
+            fetchDocuments(),
             fetchGalleryImages()
           ]);
           setStoredTexts(notesData.map(n => ({ 
-            ...n, 
-            content: n.content, 
-            autoDelete: n.autoDelete !== undefined ? n.autoDelete : n.auto_delete, 
+            id: n.id,
+            user_id: n.user_id,
+            text: n.text,
+            autoDelete: n.autoDelete,
+            created_at: n.created_at,
             createdAt: new Date(n.created_at).getTime() 
           })));
           
-          // Ensure docsData contains scheduled_deletion and file_path from the DB query
-          setDocuments(docsData.map(d => ({
-            id: d.id,
-            title: d.title,
-            content: d.content,
-            autoDelete: d.auto_delete, // This is the boolean
-            createdAt: new Date(d.created_at).getTime(),
-            lastEdited: new Date(d.last_edited).getTime(),
-            filePath: d.file_path, // Crucial for manual delete and potentially for display
-            scheduledDeletion: d.scheduled_deletion ? new Date(d.scheduled_deletion).toISOString() : null // Store as ISO string or timestamp
-          })));
+          setDocuments(docsData || []);
           
           setGalleryImages(galleryData || []);
         } catch (error) {
@@ -88,15 +79,21 @@ export default function Home() {
     }
   }, [user]);
 
-  // Client-side timer for StoredTexts (notes) - this remains unchanged
   useEffect(() => {
     Object.values(autoDeleteTimersRef.current).forEach(timer => clearTimeout(timer));
     autoDeleteTimersRef.current = {};
     storedTexts.forEach((item) => {
-      if (item.autoDelete) {
-        autoDeleteTimersRef.current[item.id] = setTimeout(() => {
-          setStoredTexts(prev => prev.filter(note => note.id !== item.id));
-        }, 7000); 
+      if (item.id && item.autoDelete) {
+        autoDeleteTimersRef.current[item.id] = setTimeout(async () => {
+          try {
+            await deleteNoteDb(item.id);
+            setStoredTexts(prev => prev.filter(note => note.id !== item.id));
+            console.log(`Note ${item.id} auto-deleted from DB and client state.`);
+          } catch (error) {
+            console.error(`Failed to auto-delete note ${item.id} from DB:`, error);
+            setStoredTexts(prev => prev.filter(note => note.id !== item.id));
+          }
+        }, 7000);
       }
     });
     return () => {
@@ -104,31 +101,28 @@ export default function Home() {
     };
   }, [storedTexts]);
 
-  // Periodically re-fetch documents to reflect backend deletions by cron job
   useEffect(() => {
     const intervalId = setInterval(async () => {
-      if (user && (activeSection === "documents" || documents.some(d => d.autoDelete))) {
-        // console.log("Periodic re-fetch of documents due to potential auto-deletions...");
+      if (user && (activeSection === "documents" || documents.some(d => d.auto_delete))) {
         try {
-          const docsData = await fetchDocuments(); // Ensure this selects scheduled_deletion
-          setDocuments(docsData.map(d => ({
-            id: d.id,
-            title: d.title,
-            content: d.content,
-            autoDelete: d.auto_delete,
-            createdAt: new Date(d.created_at).getTime(),
-            lastEdited: new Date(d.last_edited).getTime(),
-            filePath: d.file_path,
-            scheduledDeletion: d.scheduled_deletion ? new Date(d.scheduled_deletion).toISOString() : null
-          })));
+          const docsData = await fetchDocuments();
+          setDocuments(docsData || []);
         } catch (error) {
           console.error("Error during periodic document re-fetch:", error);
         }
       }
-    }, 15000); // Re-fetch every 15 seconds for example
+      if (user && (activeSection === "gallery" || galleryImages.some(img => img.auto_delete))) {
+        try {
+          const imagesData = await fetchGalleryImages();
+          setGalleryImages(imagesData || []);
+        } catch (error) {
+          console.error("Error during periodic image re-fetch:", error);
+        }
+      }
+    }, 30000);
 
     return () => clearInterval(intervalId);
-  }, [user, activeSection, documents]); // Add documents to re-evaluate if any are marked for auto-delete
+  }, [user, activeSection, documents, galleryImages]);
 
   const handleSaveText = (noteFromInput) => {
     const newNote = {
@@ -141,7 +135,6 @@ export default function Home() {
   };
 
   const handleToggleAutoDelete = async (noteId) => {
-    // ... (notes toggle logic remains client-side for now or needs its own backend solution)
     const noteIndex = storedTexts.findIndex(n => n.id === noteId);
     if (noteIndex === -1) return;
     const originalNote = storedTexts[noteIndex];
@@ -158,53 +151,65 @@ export default function Home() {
     }
   };
 
-  const handleToggleDocAutoDelete = async (docId) => {
+  const handleToggleDocAutoDelete = async (docId, newAutoDeleteState, expiryDays) => {
     const docIndex = documents.findIndex(d => d.id === docId);
     if (docIndex === -1) return;
     const originalDoc = documents[docIndex];
-    const newAutoDeleteState = !originalDoc.autoDelete;
 
-    // Optimistic UI update
-    const optimisticDoc = { 
-      ...originalDoc, 
-      autoDelete: newAutoDeleteState, 
-      // scheduledDeletion will be updated by backend, so we can clear it or leave as is optimistically
-      // For simplicity, let's just toggle autoDelete here. The re-fetch will get the new scheduled_deletion.
-      scheduledDeletion: newAutoDeleteState ? "pending..." : null // Indicate pending or clear
+    let optimisticExpiryDate = originalDoc.expiry_date;
+    if (newAutoDeleteState && expiryDays) {
+      const newExpiry = new Date();
+      newExpiry.setDate(newExpiry.getDate() + expiryDays);
+      optimisticExpiryDate = newExpiry.toISOString();
+    } else if (!newAutoDeleteState) {
+      optimisticExpiryDate = null;
+    }
+
+    const optimisticDoc = {
+      ...originalDoc,
+      auto_delete: newAutoDeleteState,
+      expiry_date: optimisticExpiryDate
     };
     setDocuments(prevDocs => prevDocs.map(d => d.id === docId ? optimisticDoc : d));
 
     try {
-      // This service now just updates the auto_delete boolean. DB triggers handle the rest.
-      const updatedDocFromDb = await toggleDocAutoDeleteService(docId, newAutoDeleteState);
-      // Re-fetch or update state with the actual scheduled_deletion from DB response
-      setDocuments(prevDocs => prevDocs.map(d => 
-        d.id === docId ? { 
-          ...d, // keep optimistic changes for a moment if needed, or use full updatedDocFromDb
-          autoDelete: updatedDocFromDb.auto_delete,
-          scheduledDeletion: updatedDocFromDb.scheduled_deletion ? new Date(updatedDocFromDb.scheduled_deletion).toISOString() : null,
-          // ensure other fields are also from updatedDocFromDb if they changed
-          title: updatedDocFromDb.title, 
-          content: updatedDocFromDb.content,
-          createdAt: new Date(updatedDocFromDb.created_at).getTime(),
-          lastEdited: new Date(updatedDocFromDb.last_edited).getTime(),
-          filePath: updatedDocFromDb.file_path,
-        } : d
-      ));
+      const updatedDocFromDb = await toggleDocumentAutoDelete(docId, newAutoDeleteState, expiryDays);
+      setDocuments(prevDocs => prevDocs.map(d => d.id === docId ? updatedDocFromDb : d));
     } catch (error) {
       console.error("Error toggling document auto-delete, reverting optimistic update:", error);
       setDocuments(prevDocs => prevDocs.map(d => d.id === docId ? originalDoc : d));
     }
   };
-  
-  // This function now calculates remaining time based on doc.scheduledDeletion
-  const getDocRemainingTime = useCallback((doc) => {
-    if (!doc.autoDelete || !doc.scheduledDeletion) return 0;
-    const deletionTime = new Date(doc.scheduledDeletion).getTime();
-    const currentTime = Date.now();
-    const remainingMs = Math.max(0, deletionTime - currentTime);
-    return Math.floor(remainingMs / 1000); // Convert to seconds
-  }, []);
+
+  const handleToggleImageAutoDelete = async (imageId, newAutoDeleteState, expiryDays) => {
+    const imgIndex = galleryImages.findIndex(img => img.id === imageId);
+    if (imgIndex === -1) return;
+    const originalImage = galleryImages[imgIndex];
+
+    let optimisticExpiryDate = originalImage.expiry_date;
+    if (newAutoDeleteState && expiryDays) {
+      const newExpiry = new Date();
+      newExpiry.setDate(newExpiry.getDate() + expiryDays);
+      optimisticExpiryDate = newExpiry.toISOString();
+    } else if (!newAutoDeleteState) {
+      optimisticExpiryDate = null;
+    }
+
+    const optimisticImage = {
+      ...originalImage,
+      auto_delete: newAutoDeleteState,
+      expiry_date: optimisticExpiryDate
+    };
+    setGalleryImages(prevImgs => prevImgs.map(img => img.id === imageId ? optimisticImage : img));
+
+    try {
+      const updatedImageFromDb = await toggleImageAutoDelete(imageId, newAutoDeleteState, expiryDays);
+      setGalleryImages(prevImgs => prevImgs.map(img => img.id === imageId ? updatedImageFromDb : img));
+    } catch (error) {
+      console.error("Error toggling image auto-delete, reverting optimistic update:", error);
+      setGalleryImages(prevImgs => prevImgs.map(img => img.id === imageId ? originalImage : img));
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -215,20 +220,10 @@ export default function Home() {
     }
   };
   
-  const handleAddDocument = async (formData, file) => {
+  const handleAddDocument = async (formData) => {
     try {
-      const newDocFromDb = await createDocument(formData, file); // Ensure this service returns scheduled_deletion if auto_delete is true
-      const formattedDoc = {
-        id: newDocFromDb.id,
-        title: newDocFromDb.title,
-        content: newDocFromDb.content,
-        autoDelete: newDocFromDb.auto_delete,
-        createdAt: new Date(newDocFromDb.created_at).getTime(),
-        lastEdited: new Date(newDocFromDb.last_edited).getTime(),
-        filePath: newDocFromDb.file_path,
-        scheduledDeletion: newDocFromDb.scheduled_deletion ? new Date(newDocFromDb.scheduled_deletion).toISOString() : null
-      };
-      setDocuments(prevDocs => [formattedDoc, ...prevDocs]);
+      const newDocFromDb = await createDocument(formData);
+      setDocuments(prevDocs => [newDocFromDb, ...prevDocs]);
     } catch (error) {
       console.error("Error adding document:", error);
       throw error; 
@@ -237,21 +232,18 @@ export default function Home() {
   
   const handleDeleteDocument = async (id) => {
     try {
-      // Optimistically remove from UI
       setDocuments(docs => docs.filter(d => d.id !== id));
-      await deleteDocumentService(id); // This deletes from DB. Storage file deletion relies on cron job's attempt or manual.
+      await deleteDocumentService(id);
     } catch (error) {
       console.error("Error deleting document:", error);
-      // Re-fetch or add back to UI if delete failed? For now, log and rely on periodic re-fetch to correct.
     }
   };
 
-  const handleImageUpload = async (file, altText) => {
-    if (!file) return;
+  const handleImageUpload = async (file, altText, autoDelete, expiryDays) => {
     setIsLoadingGalleryImages(true);
     try {
-      const newImage = await uploadGalleryImage(file, altText);
-      setGalleryImages(prevImages => [newImage, ...prevImages]);
+      const newImageFromDb = await uploadGalleryImage(file, altText, autoDelete, expiryDays);
+      setGalleryImages(prevImages => [newImageFromDb, ...prevImages]);
     } catch (error) {
       console.error("Error uploading image:", error);
     } finally {
@@ -259,15 +251,12 @@ export default function Home() {
     }
   };
 
-  const handleDeleteImage = async (imageId, filePath) => {
-    setIsLoadingGalleryImages(true);
+  const handleDeleteImage = async (imageId) => {
     try {
-      await deleteGalleryImage(imageId, filePath);
-      setGalleryImages(prevImages => prevImages.filter(img => img.id !== imageId));
+      setGalleryImages(imgs => imgs.filter(img => img.id !== imageId));
+      await deleteGalleryImage(imageId);
     } catch (error) {
       console.error("Error deleting image:", error);
-    } finally {
-      setIsLoadingGalleryImages(false);
     }
   };
   
@@ -309,16 +298,15 @@ export default function Home() {
           </div>
         );
       case "gallery":
-        return <ImageGallery images={galleryImages} isLoading={isLoadingGalleryImages} onImageUpload={handleImageUpload} onImageDelete={handleDeleteImage} />;
+        return <ImageGallery images={galleryImages} isLoading={isLoadingGalleryImages} onImageUpload={handleImageUpload} onImageDelete={handleDeleteImage} onToggleImageAutoDelete={handleToggleImageAutoDelete} />;
       case "documents":
         return <Documents 
                   documents={documents}
-                  isLoadingDocuments={isLoadingDocuments}
+                  isLoading={isLoadingDocuments}
                   onAddDocument={handleAddDocument}
                   onDeleteDocument={handleDeleteDocument}
                   onToggleAutoDelete={handleToggleDocAutoDelete}
                   formatLastEdited={formatLastEdited}
-                  getDocRemainingTime={getDocRemainingTime} // Use the new backend-driven calculation
                 />;
       default:
         return <div>Select a section</div>;
@@ -333,15 +321,14 @@ export default function Home() {
 
   if (authLoading || (!user && router.asPath !== '/login' && typeof window !== 'undefined' && window.location.pathname !== '/login')) {
       return (
-        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-100 via-indigo-50 to-purple-100 dark:from-blue-900 dark:via-indigo-900 dark:to-purple-900">
-          <div className="animate-spin h-10 w-10 border-4 border-blue-600 rounded-full border-t-transparent"></div>
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-100 via-indigo-50 to-purple-100 dark:from-blue-900 dark:via-indigo-950 dark:to-purple-900">
+          <div className="animate-spin h-10 w-10 border-4 border-blue-500 rounded-full border-t-transparent"></div>
         </div>
       );
   }
 
   return (
     <div className="relative min-h-screen flex flex-col z-10">
-      {/* Header */}
       <header className="w-full flex items-center justify-between px-8 py-6 bg-white/70 dark:bg-blue-950/80 backdrop-blur-md shadow-sm border-b border-blue-100 dark:border-blue-900 z-20">
         <div className="flex items-center gap-2">
           <span className="inline-block w-8 h-8 rounded-full bg-gradient-to-tr from-blue-400 to-blue-600 dark:from-blue-700 dark:to-blue-400 mr-2" />

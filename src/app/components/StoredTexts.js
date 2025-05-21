@@ -77,7 +77,7 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
             <ul className="space-y-2">
               {texts.map((item, index) => (
                 <li key={item.id || index} className="p-3 bg-white/70 dark:bg-blue-900/40 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
-                  <span className="flex-1 pr-4">{item.content}</span>
+                  <span className="flex-1 pr-4">{item.text}</span>
                   <div className="flex items-center">
                     <div className="flex flex-col items-end mr-2 h-10">
                       <label htmlFor={`auto-delete-${index}`} className="text-sm text-blue-700 dark:text-blue-300">

@@ -1,23 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { formatDistanceToNow, parseISO } from 'date-fns';
 
 const DocumentCard = ({ 
   doc, 
   onToggleAutoDelete, 
   onDeleteDocument, 
-  formatLastEdited, 
-  getDocRemainingTime 
+  formatLastEdited 
 }) => {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
+  const [showTimeoutOptions, setShowTimeoutOptions] = useState(false);
+  const [selectedExpiryDays, setSelectedExpiryDays] = useState(null);
+  const [remainingTime, setRemainingTime] = useState('');
 
-  const getFileExtension = (urlOrPath) => {
-    if (!urlOrPath) return '';
-    const pathWithoutQuery = urlOrPath.split('?')[0];
+  useEffect(() => {
+    if (doc.auto_delete && doc.expiry_date) {
+      const updateRemainingTime = () => {
+        const expiry = parseISO(doc.expiry_date);
+        const now = new Date();
+        if (expiry > now) {
+          setRemainingTime(formatDistanceToNow(expiry, { addSuffix: true }));
+        } else {
+          setRemainingTime('Expired');
+        }
+      };
+      updateRemainingTime();
+      const intervalId = setInterval(updateRemainingTime, 60000);
+      return () => clearInterval(intervalId);
+    } else {
+      setRemainingTime('');
+    }
+  }, [doc.auto_delete, doc.expiry_date]);
+
+  const getFileExtension = (urlOrPathOrFileName) => {
+    if (!urlOrPathOrFileName) return '';
+    const targetString = doc.content || urlOrPathOrFileName;
+    const pathWithoutQuery = targetString.split('?')[0];
     const parts = pathWithoutQuery.split('.');
     return parts.length > 1 ? parts.pop().toLowerCase() : '';
   };
 
-  const fileExtension = getFileExtension(doc.content || doc.title); // Prefer doc.content for URL, fallback to title if it might contain filename
+  const fileExtension = getFileExtension(doc.file_name);
 
   const isPdf = fileExtension === 'pdf';
   const isOfficeDoc = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(fileExtension);
@@ -41,7 +64,6 @@ const DocumentCard = ({
   if (isPdf) {
     previewUrl = doc.content;
   } else if (isOfficeDoc) {
-    // Ensure doc.content is properly encoded for the Google Docs Viewer URL
     previewUrl = `https://docs.google.com/gview?url=${encodeURIComponent(doc.content)}&embedded=true`;
   }
 
@@ -50,13 +72,48 @@ const DocumentCard = ({
 
     setIsInteracting(true);
 
+    if (!doc.auto_delete) {
+      setShowTimeoutOptions(true);
+      setIsInteracting(false);
+      return;
+    }
+
     setTimeout(() => {
-      onToggleAutoDelete(doc.id);
+      onToggleAutoDelete(doc.id, false);
 
       setTimeout(() => {
         setIsInteracting(false);
-      }, 300 + 50);
+      }, 300);
     }, 150);
+  };
+
+  const expiryOptions = [
+    { label: '10 seconds', value: 10 / 86400 }, // Approx 0.0001157 days
+    { label: '1 day', value: 1 },
+    { label: '3 days', value: 3 },
+    { label: '7 days', value: 7 },
+    { label: '15 days', value: 15 },
+    { label: '30 days', value: 30 },
+  ];
+
+  const handleExpirySelect = (days) => {
+    setSelectedExpiryDays(days);
+    setIsInteracting(true);
+    
+    setTimeout(() => {
+      onToggleAutoDelete(doc.id, true, days);
+      setShowTimeoutOptions(false);
+      
+      setTimeout(() => {
+        setIsInteracting(false);
+        setSelectedExpiryDays(null);
+      }, 300);
+    }, 150);
+  };
+
+  const closeTimeoutSelector = () => {
+    setShowTimeoutOptions(false);
+    setSelectedExpiryDays(null);
   };
 
   return (
@@ -71,7 +128,7 @@ const DocumentCard = ({
           <div className="flex-1">
             <div className="flex justify-between items-start">
               <div className="flex-1 min-w-0 mr-4">
-                <h3 className="font-medium text-blue-800 dark:text-blue-100 " title={doc.title}>{doc.title}</h3>
+                <h3 className="font-medium text-blue-800 dark:text-blue-100 " title={doc.file_name}>{doc.file_name}</h3>
                 <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">
                   Last edited: {formatLastEdited(doc.lastEdited)}
                 </p>
@@ -92,14 +149,14 @@ const DocumentCard = ({
                 </div>
               </div>
               <div className="flex-shrink-0">
-                <div className="flex items-center">
+                <div className="flex items-center relative">
                   <div className="flex flex-col items-end mr-2 h-8">
                     <label htmlFor={`auto-delete-doc-${doc.id}`} className="text-xs text-blue-700 dark:text-blue-300">
                       Auto-delete
                     </label>
-                    {doc.autoDelete && doc.createdAt && (
+                    {doc.auto_delete && doc.expiry_date && (
                       <span className="text-xs text-orange-500 dark:text-orange-300 mt-0.5">
-                        Deleting in {getDocRemainingTime(doc)}s
+                        {remainingTime ? `Expires ${remainingTime}` : 'Processing...'}
                       </span>
                     )}
                   </div>
@@ -110,19 +167,51 @@ const DocumentCard = ({
                       transition-colors duration-300 ease-in-out 
                       transition-transform duration-150 ease-in-out
                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800
-                      ${doc.autoDelete ? 'bg-green-500 dark:bg-green-600' : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'}
+                      ${doc.auto_delete ? 'bg-green-500 dark:bg-green-600' : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'}
                       ${isInteracting ? 'scale-95' : 'scale-100'}
                     `}
-                    aria-pressed={doc.autoDelete}
-                    aria-label={`Toggle auto-delete for ${doc.title}`}
+                    aria-pressed={doc.auto_delete}
+                    aria-label={`Toggle auto-delete for ${doc.file_name}`}
                     disabled={isInteracting}
                   >
                     <span className={`
                       bg-white dark:bg-gray-100 w-4 h-4 rounded-full shadow-md 
                       transform transition-transform duration-300 ease-in-out
-                      ${doc.autoDelete ? 'translate-x-5' : 'translate-x-0'}
+                      ${doc.auto_delete ? 'translate-x-5' : 'translate-x-0'}
                     `} />
                   </button>
+
+                  {showTimeoutOptions && (
+                    <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg z-10 p-2 border border-blue-100 dark:border-blue-800 w-48">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">Select Expiry</h4>
+                        <button 
+                          onClick={closeTimeoutSelector}
+                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        {expiryOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => handleExpirySelect(option.value)}
+                            className={`
+                              w-full text-left px-3 py-1.5 text-xs rounded
+                              ${selectedExpiryDays === option.value 
+                                ? 'bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-200' 
+                                : 'hover:bg-blue-50 dark:hover:bg-blue-800 text-gray-700 dark:text-gray-300'}
+                            `}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -140,7 +229,7 @@ const DocumentCard = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
-              <h5 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white truncate">{doc.title || 'Document Preview'}</h5>
+              <h5 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white truncate">{doc.file_name || 'Document Preview'}</h5>
               <button 
                 onClick={closeModal}
                 className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:hover:bg-gray-600 dark:hover:text-white"
@@ -153,7 +242,7 @@ const DocumentCard = ({
               src={previewUrl}
               width="100%"
               height="100%" 
-              title={doc.title || 'Document Preview'}
+              title={doc.file_name || 'Document Preview'}
               className="flex-grow border-none"
             >
               Your browser does not support iframes or the content cannot be displayed. You can try to <a href={doc.content} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">download the document here</a>.
