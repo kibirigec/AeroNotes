@@ -8,6 +8,7 @@ const DocumentCard = ({
   getDocRemainingTime 
 }) => {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isInteracting, setIsInteracting] = useState(false);
 
   const getFileExtension = (urlOrPath) => {
     if (!urlOrPath) return '';
@@ -44,6 +45,20 @@ const DocumentCard = ({
     previewUrl = `https://docs.google.com/gview?url=${encodeURIComponent(doc.content)}&embedded=true`;
   }
 
+  const handleToggleClick = () => {
+    if (isInteracting) return;
+
+    setIsInteracting(true);
+
+    setTimeout(() => {
+      onToggleAutoDelete(doc.id);
+
+      setTimeout(() => {
+        setIsInteracting(false);
+      }, 300 + 50);
+    }, 150);
+  };
+
   return (
     <>
       <div className="bg-white/90 dark:bg-blue-900/40 rounded-xl p-4 border border-blue-100 dark:border-blue-800 hover:shadow-md transition flex flex-col">
@@ -78,7 +93,7 @@ const DocumentCard = ({
               </div>
               <div className="flex-shrink-0">
                 <div className="flex items-center">
-                  <div className="flex flex-col items-end mr-2">
+                  <div className="flex flex-col items-end mr-2 h-8">
                     <label htmlFor={`auto-delete-doc-${doc.id}`} className="text-xs text-blue-700 dark:text-blue-300">
                       Auto-delete
                     </label>
@@ -89,12 +104,24 @@ const DocumentCard = ({
                     )}
                   </div>
                   <button
-                    onClick={() => onToggleAutoDelete(doc.id)}
-                    className={`w-8 h-4 flex items-center rounded-full p-1 transition-colors duration-300 focus:outline-none ${doc.autoDelete ? 'bg-green-500 dark:bg-green-600' : 'bg-gray-300 dark:bg-gray-600'}`}
+                    onClick={handleToggleClick}
+                    className={`
+                      w-10 h-5 flex items-center rounded-full p-0.5 
+                      transition-colors duration-300 ease-in-out 
+                      transition-transform duration-150 ease-in-out
+                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800
+                      ${doc.autoDelete ? 'bg-green-500 dark:bg-green-600' : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'}
+                      ${isInteracting ? 'scale-95' : 'scale-100'}
+                    `}
                     aria-pressed={doc.autoDelete}
                     aria-label={`Toggle auto-delete for ${doc.title}`}
+                    disabled={isInteracting}
                   >
-                    <span className={`bg-white dark:bg-gray-200 w-3 h-3 rounded-full shadow-md transform transition-transform duration-300 ${doc.autoDelete ? 'translate-x-4' : 'translate-x-0'}`} />
+                    <span className={`
+                      bg-white dark:bg-gray-100 w-4 h-4 rounded-full shadow-md 
+                      transform transition-transform duration-300 ease-in-out
+                      ${doc.autoDelete ? 'translate-x-5' : 'translate-x-0'}
+                    `} />
                   </button>
                 </div>
               </div>
@@ -106,11 +133,11 @@ const DocumentCard = ({
       {canPreviewInModal && isPreviewModalOpen && (
         <div 
           className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-8 md:p-12 lg:p-16"
-          onClick={closeModal} // Close on backdrop click
+          onClick={closeModal}
         >
           <div 
             className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full h-full flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the modal content
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
               <h5 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white truncate">{doc.title || 'Document Preview'}</h5>

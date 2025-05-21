@@ -38,16 +38,17 @@ export default function DarkModeToggle() {
   return (
     <button
       onClick={toggleDarkMode}
-      className={`relative rounded-full px-3 py-2 bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 shadow hover:bg-blue-200 dark:hover:bg-blue-800 transition-all duration-500 flex items-center gap-1 overflow-hidden ${isAnimating ? 'scale-90' : 'scale-100'}`}
+      className={`relative w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800 transition-all duration-300 ease-in-out flex items-center justify-center overflow-hidden ${isAnimating ? 'scale-95' : 'scale-100'}`}
       aria-label="Toggle dark mode"
       disabled={isAnimating}
     >
-      <div className={`transition-transform duration-500 ${isAnimating ? 'rotate-180' : ''}`}>
-        {darkMode ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" /></svg>
-        ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.07l-.71.71M21 12h-1M4 12H3m16.66 5.66l-.71-.71M4.05 4.93l-.71-.71" /></svg>
-        )}
+      <div className={`absolute transition-all duration-300 ease-in-out ${darkMode ? 'opacity-0 -translate-x-full rotate-180' : 'opacity-100 translate-x-0 rotate-0'}`}>
+        {/* Sun Icon */}
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.07l-.71.71M21 12h-1M4 12H3m16.66 5.66l-.71-.71M4.05 4.93l-.71-.71" /></svg>
+      </div>
+      <div className={`absolute transition-all duration-300 ease-in-out ${darkMode ? 'opacity-100 translate-x-0 rotate-0' : 'opacity-0 translate-x-full -rotate-180'}`}>
+        {/* Moon Icon */}
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" /></svg>
       </div>
     </button>
   );

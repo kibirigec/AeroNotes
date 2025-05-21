@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 
 export default function StoredTexts({ texts, onToggleAutoDelete }) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [isInteractingMap, setIsInteractingMap] = useState({});
 
   // Toggle expansion
   const toggleExpanded = () => {
@@ -24,6 +25,20 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
     
     // Return as seconds with one decimal place
     return (remainingTime / 1000).toFixed(1);
+  };
+
+  const handleToggleClick = (index, currentAutoDelete) => {
+    if (isInteractingMap[index]) return;
+
+    setIsInteractingMap(prev => ({ ...prev, [index]: true }));
+
+    setTimeout(() => {
+      onToggleAutoDelete(index);
+      
+      setTimeout(() => {
+        setIsInteractingMap(prev => ({ ...prev, [index]: false }));
+      }, 300 + 50);
+    }, 150);
   };
 
   return (
@@ -64,7 +79,7 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
                 <li key={item.id || index} className="p-3 bg-white/70 dark:bg-blue-900/40 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
                   <span className="flex-1 pr-4">{item.content}</span>
                   <div className="flex items-center">
-                    <div className="flex flex-col items-end mr-2">
+                    <div className="flex flex-col items-end mr-2 h-10">
                       <label htmlFor={`auto-delete-${index}`} className="text-sm text-blue-700 dark:text-blue-300">
                         Auto-delete
                       </label>
@@ -75,19 +90,31 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
                       )}
                     </div>
                     <button
-                      onClick={() => onToggleAutoDelete(index)}
-                      className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors duration-300 focus:outline-none ${
-                        item.autoDelete 
-                          ? 'bg-green-500 dark:bg-green-600' 
-                          : 'bg-gray-300 dark:bg-gray-600'
-                      }`}
+                      onClick={() => handleToggleClick(index, item.autoDelete)}
+                      className={`
+                        w-10 h-5 flex items-center rounded-full p-0.5 
+                        transition-colors duration-300 ease-in-out 
+                        transition-transform duration-150 ease-in-out
+                        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800
+                        ${
+                          item.autoDelete 
+                            ? 'bg-green-500 dark:bg-green-600' 
+                            : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
+                        }
+                        ${isInteractingMap[index] ? 'scale-95' : 'scale-100'}
+                      `}
                       aria-pressed={item.autoDelete}
                       aria-label={`Toggle auto-delete for text ${index + 1}`}
+                      disabled={isInteractingMap[index]}
                     >
                       <span
-                        className={`bg-white dark:bg-gray-200 w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${
-                          item.autoDelete ? 'translate-x-5' : 'translate-x-0'
-                        }`}
+                        className={`
+                          bg-white dark:bg-gray-100 w-4 h-4 rounded-full shadow-md 
+                          transform transition-transform duration-300 ease-in-out
+                          ${
+                            item.autoDelete ? 'translate-x-5' : 'translate-x-0'
+                          }
+                        `}
                       />
                     </button>
                   </div>
