@@ -21,19 +21,19 @@ export default function TextInput({ onSaveText }) {
       autosaveTimerRef.current = setTimeout(() => {
         setIsAutosaving(true);
         
-        // Save the text to Supabase
+        // Save the text to Supabase (createNote defaults to autoDelete=true)
         createNote(text)
-          .then(newNote => {
-            // Transform the note object to handle different column names
-            const transformedNote = {
-              ...newNote,
-              // Handle both possible column names
-              autoDelete: newNote.autoDelete !== undefined ? newNote.autoDelete : newNote.auto_delete,
-              createdAt: newNote.createdAt || new Date(newNote.created_at).getTime(),
+          .then(newNoteFromDb => { // newNoteFromDb has id, text, autoDelete, created_at, expiry_date
+            const noteForClientState = {
+              id: newNoteFromDb.id,
+              text: newNoteFromDb.text,
+              autoDelete: newNoteFromDb.autoDelete, // Directly from DB object
+              created_at: newNoteFromDb.created_at, // ISO string
+              createdAt: new Date(newNoteFromDb.created_at).getTime(), // Timestamp for client logic
+              expiry_date: newNoteFromDb.expiry_date // ISO string or null
             };
             
-            // Add the new note to the local state via callback
-            onSaveText(transformedNote);
+            onSaveText(noteForClientState);
             setText("");
             setIsAutosaving(false);
             setAutosaveComplete(true);
@@ -74,19 +74,19 @@ export default function TextInput({ onSaveText }) {
       setIsAutosaving(true);
       
       try {
-        // Save to Supabase
-        const newNote = await createNote(text);
+        // Save to Supabase (createNote defaults to autoDelete=true)
+        const newNoteFromDb = await createNote(text); // newNoteFromDb has id, text, autoDelete, created_at, expiry_date
         
-        // Transform the note object to handle different column names
-        const transformedNote = {
-          ...newNote,
-          // Handle both possible column names
-          autoDelete: newNote.autoDelete !== undefined ? newNote.autoDelete : newNote.auto_delete,
-          createdAt: newNote.createdAt || new Date(newNote.created_at).getTime(),
+        const noteForClientState = {
+          id: newNoteFromDb.id,
+          text: newNoteFromDb.text,
+          autoDelete: newNoteFromDb.autoDelete, // Directly from DB object
+          created_at: newNoteFromDb.created_at, // ISO string
+          createdAt: new Date(newNoteFromDb.created_at).getTime(), // Timestamp for client logic
+          expiry_date: newNoteFromDb.expiry_date // ISO string or null
         };
         
-        // Add to local state via callback
-        onSaveText(transformedNote);
+        onSaveText(noteForClientState);
         setText("");
         setIsAutosaving(false);
         setAutosaveComplete(true);

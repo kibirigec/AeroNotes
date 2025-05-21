@@ -10,33 +10,30 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
     setIsExpanded(!isExpanded);
   };
 
-  // Calculate remaining time for auto-delete
-  const getRemainingTime = (item) => {
-    // Check both possible property names for autoDelete
-    const isAutoDelete = item.autoDelete !== undefined ? item.autoDelete : item.auto_delete;
-    if (!isAutoDelete) return null;
-    
-    // Check both possible property names for createdAt
-    const createdTime = item.createdAt || (item.created_at ? new Date(item.created_at).getTime() : null);
-    if (!createdTime) return null;
-    
-    const elapsedTime = Date.now() - createdTime;
-    const remainingTime = Math.max(0, 7000 - elapsedTime);
-    
-    // Return as seconds with one decimal place
-    return (remainingTime / 1000).toFixed(1);
+  const formatExpiryDate = (isoString) => {
+    if (!isoString) return 'N/A';
+    try {
+      const date = new Date(isoString);
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'Invalid Date';
+      }
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+    } catch (e) {
+      return 'Invalid Date';
+    }
   };
 
-  const handleToggleClick = (index, currentAutoDelete) => {
-    if (isInteractingMap[index]) return;
+  const handleToggleClick = (itemId) => {
+    if (isInteractingMap[itemId]) return;
 
-    setIsInteractingMap(prev => ({ ...prev, [index]: true }));
+    setIsInteractingMap(prev => ({ ...prev, [itemId]: true }));
 
     setTimeout(() => {
-      onToggleAutoDelete(index);
+      onToggleAutoDelete(itemId);
       
       setTimeout(() => {
-        setIsInteractingMap(prev => ({ ...prev, [index]: false }));
+        setIsInteractingMap(prev => ({ ...prev, [itemId]: false }));
       }, 300 + 50);
     }, 150);
   };
@@ -75,22 +72,27 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
         <div className="p-6 pt-0 whitespace-pre-wrap text-blue-900 dark:text-blue-100 overflow-auto max-h-[300px] lg:max-h-[284px]">
           {texts.length > 0 ? (
             <ul className="space-y-2">
-              {texts.map((item, index) => (
-                <li key={item.id || index} className="p-3 bg-white/70 dark:bg-blue-900/40 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
+              {texts.map((item) => (
+                <li key={item.id} className="p-3 bg-white/70 dark:bg-blue-900/40 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
                   <span className="flex-1 pr-4">{item.text}</span>
                   <div className="flex items-center">
-                    <div className="flex flex-col items-end mr-2 h-10">
-                      <label htmlFor={`auto-delete-${index}`} className="text-sm text-blue-700 dark:text-blue-300">
+                    <div className="flex flex-col items-end mr-2 min-h-[2.5rem]">
+                      <label htmlFor={`auto-delete-${item.id}`} className="text-sm text-blue-700 dark:text-blue-300">
                         Auto-delete
                       </label>
-                      {item.autoDelete && (
+                      {item.autoDelete && item.expiry_date && (
                         <span className="text-xs text-orange-500 dark:text-orange-300 mt-0.5">
-                          Deleting in {getRemainingTime(item)}s
+                          Expires: {formatExpiryDate(item.expiry_date)}
+                        </span>
+                      )}
+                      {item.autoDelete && !item.expiry_date && (
+                         <span className="text-xs text-green-500 dark:text-green-400 mt-0.5">
+                          On (Expiry pending)
                         </span>
                       )}
                     </div>
                     <button
-                      onClick={() => handleToggleClick(index, item.autoDelete)}
+                      onClick={() => handleToggleClick(item.id)}
                       className={`
                         w-10 h-5 flex items-center rounded-full p-0.5 
                         transition-colors duration-300 ease-in-out 
@@ -101,11 +103,11 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
                             ? 'bg-green-500 dark:bg-green-600' 
                             : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
                         }
-                        ${isInteractingMap[index] ? 'scale-95' : 'scale-100'}
+                        ${isInteractingMap[item.id] ? 'scale-95' : 'scale-100'}
                       `}
                       aria-pressed={item.autoDelete}
-                      aria-label={`Toggle auto-delete for text ${index + 1}`}
-                      disabled={isInteractingMap[index]}
+                      aria-label={`Toggle auto-delete for note ${item.text ? item.text.substring(0,20) : ''}`}
+                      disabled={isInteractingMap[item.id]}
                     >
                       <span
                         className={`

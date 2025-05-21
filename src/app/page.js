@@ -60,7 +60,8 @@ export default function Home() {
             text: n.text,
             autoDelete: n.autoDelete,
             created_at: n.created_at,
-            createdAt: new Date(n.created_at).getTime() 
+            createdAt: new Date(n.created_at).getTime(),
+            expiry_date: n.expiry_date
           })));
           
           setDocuments(docsData || []);
@@ -78,28 +79,6 @@ export default function Home() {
       loadAllData();
     }
   }, [user]);
-
-  useEffect(() => {
-    Object.values(autoDeleteTimersRef.current).forEach(timer => clearTimeout(timer));
-    autoDeleteTimersRef.current = {};
-    storedTexts.forEach((item) => {
-      if (item.id && item.autoDelete) {
-        autoDeleteTimersRef.current[item.id] = setTimeout(async () => {
-          try {
-            await deleteNoteDb(item.id);
-            setStoredTexts(prev => prev.filter(note => note.id !== item.id));
-            console.log(`Note ${item.id} auto-deleted from DB and client state.`);
-          } catch (error) {
-            console.error(`Failed to auto-delete note ${item.id} from DB:`, error);
-            setStoredTexts(prev => prev.filter(note => note.id !== item.id));
-          }
-        }, 7000);
-      }
-    });
-    return () => {
-      Object.values(autoDeleteTimersRef.current).forEach(timer => clearTimeout(timer));
-    };
-  }, [storedTexts]);
 
   useEffect(() => {
     const intervalId = setInterval(async () => {
@@ -125,13 +104,16 @@ export default function Home() {
   }, [user, activeSection, documents, galleryImages]);
 
   const handleSaveText = (noteFromInput) => {
-    const newNote = {
+    const newNoteForState = {
       id: noteFromInput.id,
-      content: noteFromInput.content,
+      user_id: noteFromInput.user_id,
+      text: noteFromInput.text,
       autoDelete: noteFromInput.autoDelete,
-      createdAt: noteFromInput.createdAt
+      created_at: noteFromInput.created_at,
+      createdAt: noteFromInput.createdAt,
+      expiry_date: noteFromInput.expiry_date
     };
-    setStoredTexts(prevTexts => [newNote, ...prevTexts]);
+    setStoredTexts(prevTexts => [newNoteForState, ...prevTexts]);
   };
 
   const handleToggleAutoDelete = async (noteId) => {
@@ -139,12 +121,26 @@ export default function Home() {
     if (noteIndex === -1) return;
     const originalNote = storedTexts[noteIndex];
     const newAutoDeleteState = !originalNote.autoDelete;
-    const optimisticNote = { ...originalNote, autoDelete: newAutoDeleteState, createdAt: newAutoDeleteState ? (originalNote.createdAt || Date.now()) : originalNote.createdAt };
+
+    const optimisticNote = {
+       ...originalNote, 
+       autoDelete: newAutoDeleteState,
+       expiry_date: newAutoDeleteState ? originalNote.expiry_date : null
+    };
     setStoredTexts(prev => prev.map(n => n.id === noteId ? optimisticNote : n));
+
     try {
       const updatedNoteFromDb = await toggleNoteAutoDeleteDb(noteId, newAutoDeleteState);
-      const formattedNote = { ...updatedNoteFromDb, content: updatedNoteFromDb.content, autoDelete: updatedNoteFromDb.autoDelete !== undefined ? updatedNoteFromDb.autoDelete : updatedNoteFromDb.auto_delete, createdAt: new Date(updatedNoteFromDb.created_at).getTime() };
-      setStoredTexts(prev => prev.map(n => n.id === noteId ? formattedNote : n));
+      const formattedNoteForState = {
+        id: updatedNoteFromDb.id,
+        user_id: updatedNoteFromDb.user_id,
+        text: updatedNoteFromDb.text, 
+        autoDelete: updatedNoteFromDb.autoDelete, 
+        created_at: updatedNoteFromDb.created_at,
+        createdAt: new Date(updatedNoteFromDb.created_at).getTime(),
+        expiry_date: updatedNoteFromDb.expiry_date
+      };
+      setStoredTexts(prev => prev.map(n => n.id === noteId ? formattedNoteForState : n));
     } catch (error) {
       console.error("Error toggling note auto-delete, reverting:", error);
       setStoredTexts(prev => prev.map(n => n.id === noteId ? originalNote : n));
