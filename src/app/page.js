@@ -288,9 +288,13 @@ export default function Home() {
     switch (activeSection) {
       case "notes":
         return (
-          <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-            <TextInput onSaveText={handleSaveText} />
-            <StoredTexts texts={storedTexts} onToggleAutoDelete={handleToggleAutoDelete} />
+          <div className="flex flex-col gap-6">
+            <div className="h-[calc(50vh-120px)] min-h-[250px]">
+              <TextInput onSaveText={handleSaveText} />
+            </div>
+            <div className="h-[calc(50vh-120px)] min-h-[300px]">
+              <StoredTexts texts={storedTexts} onToggleAutoDelete={handleToggleAutoDelete} />
+            </div>
           </div>
         );
       case "gallery":

@@ -14,13 +14,19 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
     if (!isoString) return 'N/A';
     try {
       const date = new Date(isoString);
-      // Check if date is valid
       if (isNaN(date.getTime())) {
         return 'Invalid Date';
       }
-      return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+      // Format to DD/MM/YY HH:mm
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+      const year = String(date.getFullYear()).slice(-2); // Last two digits of year
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
     } catch (e) {
-      return 'Invalid Date';
+      console.error("Error formatting date:", isoString, e);
+      return 'Error'; // Should be rare due to isNaN check
     }
   };
 
