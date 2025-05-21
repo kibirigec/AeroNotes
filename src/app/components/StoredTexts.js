@@ -4,29 +4,58 @@ import { useState, useEffect, useRef } from "react";
 export default function StoredTexts({ texts, onToggleAutoDelete }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isInteractingMap, setIsInteractingMap] = useState({});
+  const [copiedItemId, setCopiedItemId] = useState(null);
+
+  // Force re-render periodically for relative time updates if needed for expiry
+  // This is a simple way, could be optimized with a more targeted approach if performance issues arise
+  const [, setForceUpdate] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setForceUpdate(prev => prev + 1);
+    }, 60000); // Update every minute to refresh relative times
+    return () => clearInterval(interval);
+  }, []);
 
   // Toggle expansion
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
   };
 
-  const formatExpiryDate = (isoString) => {
+  const formatRelativeExpiry = (isoString) => {
     if (!isoString) return 'N/A';
+    const now = new Date();
+    const expiry = new Date(isoString);
+    if (isNaN(expiry.getTime())) return 'Invalid Date';
+
+    const diffSeconds = Math.round((expiry - now) / 1000);
+    const diffMinutes = Math.round(diffSeconds / 60);
+    const diffHours = Math.round(diffMinutes / 60);
+    const diffDays = Math.round(diffHours / 24);
+
+    if (diffSeconds > 0) { // Future
+      if (diffSeconds < 60) return `in ${diffSeconds}s`;
+      if (diffMinutes < 60) return `in ${diffMinutes}m`;
+      if (diffHours < 24) return `in ${diffHours}h`;
+      if (diffDays === 1) return `in 1 day`;
+      return `in ${diffDays} days`;
+    } else { // Past or now
+      if (diffSeconds > -60) return `Expired`; // Within the last minute
+      if (diffMinutes > -60) return `Expired ${-diffMinutes}m ago`;
+      if (diffHours > -24) return `Expired ${-diffHours}h ago`;
+      if (diffDays === -1) return `Expired 1 day ago`;
+      return `Expired ${-diffDays} days ago`;
+    }
+  };
+
+  const handleCopyText = async (textToCopy, itemId) => {
     try {
-      const date = new Date(isoString);
-      if (isNaN(date.getTime())) {
-        return 'Invalid Date';
-      }
-      // Format to DD/MM/YY HH:mm
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
-      const year = String(date.getFullYear()).slice(-2); // Last two digits of year
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${day}/${month}/${year} ${hours}:${minutes}`;
-    } catch (e) {
-      console.error("Error formatting date:", isoString, e);
-      return 'Error'; // Should be rare due to isNaN check
+      await navigator.clipboard.writeText(textToCopy);
+      setCopiedItemId(itemId);
+      setTimeout(() => {
+        setCopiedItemId(null);
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
     }
   };
 
@@ -71,24 +100,39 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
       
       {/* Content with animation */}
       <div 
-        className={`flex-1 overflow-hidden transition-all duration-300 ease-in-out ${
+        className={`flex-1 overflow-hidden transition-all duration-300 ease-in-out flex flex-col ${
           isExpanded ? 'opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="p-6 pt-0 whitespace-pre-wrap text-blue-900 dark:text-blue-100 overflow-auto max-h-[300px] lg:max-h-[284px]">
+        <div className="flex-1 p-6 pt-0 whitespace-pre-wrap text-blue-900 dark:text-blue-100 overflow-auto">
           {texts.length > 0 ? (
             <ul className="space-y-2">
               {texts.map((item) => (
-                <li key={item.id} className="p-3 bg-white/70 dark:bg-blue-900/40 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
-                  <span className="flex-1 pr-4">{item.text}</span>
+                <li key={item.id} className="p-3 bg-white/70 dark:bg-blue-900/40 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-start">
+                  <span className="flex-1 pr-4 break-all">{item.text}</span>
                   <div className="flex items-center">
-                    <div className="flex flex-col items-end mr-2 min-h-[2.5rem]">
+                    <button 
+                      onClick={() => handleCopyText(item.text, item.id)}
+                      title="Copy text"
+                      className="p-1.5 mr-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300 transition-colors"
+                    >
+                      {copiedItemId === item.id ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                    </button>
+                    <div className="flex flex-col items-end min-h-[2.5rem]">
                       <label htmlFor={`auto-delete-${item.id}`} className="text-sm text-blue-700 dark:text-blue-300">
                         Auto-delete
                       </label>
                       {item.autoDelete && item.expiry_date && (
                         <span className="text-xs text-orange-500 dark:text-orange-300 mt-0.5">
-                          Expires: {formatExpiryDate(item.expiry_date)}
+                          Expires {formatRelativeExpiry(item.expiry_date)}
                         </span>
                       )}
                       {item.autoDelete && !item.expiry_date && (

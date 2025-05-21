@@ -288,11 +288,11 @@ export default function Home() {
     switch (activeSection) {
       case "notes":
         return (
-          <div className="flex flex-col gap-6">
-            <div className="h-[calc(50vh-120px)] min-h-[250px]">
+          <div className="flex flex-col gap-2 h-[calc(100vh-130px)]">
+            <div className="flex-1 min-h-[200px] flex flex-col">
               <TextInput onSaveText={handleSaveText} />
             </div>
-            <div className="h-[calc(50vh-120px)] min-h-[300px]">
+            <div className="flex-1 min-h-[250px] flex flex-col">
               <StoredTexts texts={storedTexts} onToggleAutoDelete={handleToggleAutoDelete} />
             </div>
           </div>
