@@ -27,19 +27,33 @@ export default function RootLayout({ children }) {
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                // Ignore system preference - only use stored preference
                 function getThemePreference() {
-                  if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
-                    return localStorage.getItem('theme');
+                  if (typeof localStorage !== 'undefined' && localStorage.getItem('theme') === 'dark') {
+                    return 'dark';
                   }
-                  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  // Always default to light
+                  return 'light';
                 }
                 
                 const theme = getThemePreference();
-                document.documentElement.classList.toggle('dark', theme === 'dark');
+                if (theme === 'dark') {
+                  document.documentElement.classList.add('dark');
+                  document.documentElement.setAttribute('data-mode', 'dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                  document.documentElement.setAttribute('data-mode', 'light');
+                  // Ensure light is persisted
+                  if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('theme', 'light');
+                  }
+                }
               })();
             `,
           }}
         />
+        {/* Tell the browser we support both schemes and will handle them manually */}
+        <meta name="color-scheme" content="light dark" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

@@ -18,6 +18,7 @@
   --primary-blue-light: #2563eb;
   --primary-blue-dark: #1e40af;
   --shape-blue: #1e3a8a;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -28,6 +29,8 @@
 }
 
 html {
+  /* Always render using the light color-scheme by default. This prevents Chrome from recolouring when the user switches their OS/browser theme. */
+  color-scheme: light;
   transition: color var(--transition-speed) var(--transition-timing), 
               background-color var(--transition-speed) var(--transition-timing);
 }
@@ -74,31 +77,19 @@ body::after {
   background: var(--shape-blue);
 }
 
-/* For system preference support, keeping this but making it change the HTML class */
-@media (prefers-color-scheme: dark) {
-  html:not(.light) {
-    --background: #0a2540;
-    --foreground: #e6f0ff;
-    --primary-blue: #60a5fa;
-    --primary-blue-light: #2563eb;
-    --primary-blue-dark: #1e40af;
-    --shape-blue: #1e3a8a;
-  }
-  html:not(.light) body {
-    background: linear-gradient(120deg, #0a2540 0%, #1e3a8a 100%);
-    color: var(--foreground);
-  }
-}
-
 /* Add transitions for all elements that might change with dark mode */
 *, *::before, *::after {
-  transition-property: none;
+  transition-property: color, background-color, border-color;
+  transition-duration: var(--transition-speed);
+  transition-timing-function: var(--transition-timing);
 }
 
-/* No specific transitions for elements */
+/* Specific transitions for elements */
 header, 
 main, 
 button, 
 div {
-  transition: none;
+  transition-property: color, background-color, border-color, opacity, transform;
+  transition-duration: var(--transition-speed);
+  transition-timing-function: var(--transition-timing);
 }

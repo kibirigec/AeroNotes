@@ -4,17 +4,37 @@ import { useState, useEffect } from "react";
 export default function DarkModeToggle() {
   const [darkMode, setDarkMode] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // On mount, check localStorage or system preference
+  // On mount, check only localStorage - no system preference
   useEffect(() => {
+    // Set mounted flag so we only render on client
+    setMounted(true);
+    
+    // Force light mode as default if nothing in localStorage
     const saved = localStorage.getItem("theme");
-    if (saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+    if (saved === "dark") {
       setDarkMode(true);
       document.documentElement.classList.add("dark");
+      document.documentElement.setAttribute("data-mode", "dark");
     } else {
+      // Explicit light mode - remove dark mode classes and add light mode
       setDarkMode(false);
       document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+      document.documentElement.setAttribute("data-mode", "light");
     }
+
+    // Override any browser preference
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const mediaQueryListener = () => {
+      // Do nothing - we ignore changes to browser preferences
+    };
+    darkModeMediaQuery.addEventListener('change', mediaQueryListener);
+
+    return () => {
+      darkModeMediaQuery.removeEventListener('change', mediaQueryListener);
+    };
   }, []);
 
   // Toggle dark mode with animation
@@ -25,15 +45,20 @@ export default function DarkModeToggle() {
       setDarkMode(newMode);
       if (newMode) {
         document.documentElement.classList.add("dark");
+        document.documentElement.setAttribute("data-mode", "dark");
         localStorage.setItem("theme", "dark");
       } else {
         document.documentElement.classList.remove("dark");
+        document.documentElement.setAttribute("data-mode", "light");
         localStorage.setItem("theme", "light");
       }
       // Reset animation state after a delay matching the CSS transition duration
       setTimeout(() => setIsAnimating(false), 800);
     }, 200);
   };
+
+  // Don't render anything during SSR
+  if (!mounted) return null;
 
   return (
     <button
