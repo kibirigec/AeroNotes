@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createNote } from "../../../lib/notesService";
 
-export default function TextInput({ onSaveText }) {
+export default function TextInput({ onNoteCreated }) {
   const [text, setText] = useState("");
   const [isAutosaving, setIsAutosaving] = useState(false);
   const [autosaveComplete, setAutosaveComplete] = useState(false);
@@ -58,16 +58,11 @@ export default function TextInput({ onSaveText }) {
         // Save the text to Supabase (createNote defaults to autoDelete=true)
         createNote(text)
           .then(newNoteFromDb => { // newNoteFromDb has id, text, autoDelete, created_at, expiry_date
-            const noteForClientState = {
-              id: newNoteFromDb.id,
-              text: newNoteFromDb.text,
-              autoDelete: newNoteFromDb.autoDelete, // Directly from DB object
-              created_at: newNoteFromDb.created_at, // ISO string
-              createdAt: new Date(newNoteFromDb.created_at).getTime(), // Timestamp for client logic
-              expiry_date: newNoteFromDb.expiry_date // ISO string or null
-            };
-            
-            onSaveText(noteForClientState);
+            // DO NOT call onSaveText here as useNotes will handle updates from DB
+            // Instead, signal that a note was created so parent can reload
+            if (onNoteCreated) {
+              onNoteCreated();
+            }
             setText("");
             setIsAutosaving(false);
             setAutosaveComplete(true);
@@ -91,7 +86,7 @@ export default function TextInput({ onSaveText }) {
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [text, onSaveText]);
+  }, [text, onNoteCreated]);
 
   // Handle key press in textarea
   const handleKeyDown = (e) => {
@@ -111,16 +106,12 @@ export default function TextInput({ onSaveText }) {
         // Save to Supabase (createNote defaults to autoDelete=true)
         const newNoteFromDb = await createNote(text); // newNoteFromDb has id, text, autoDelete, created_at, expiry_date
         
-        const noteForClientState = {
-          id: newNoteFromDb.id,
-          text: newNoteFromDb.text,
-          autoDelete: newNoteFromDb.autoDelete, // Directly from DB object
-          created_at: newNoteFromDb.created_at, // ISO string
-          createdAt: new Date(newNoteFromDb.created_at).getTime(), // Timestamp for client logic
-          expiry_date: newNoteFromDb.expiry_date // ISO string or null
-        };
+        // DO NOT call onSaveText here as useNotes will handle updates from DB
+        // Instead, signal that a note was created so parent can reload
+        if (onNoteCreated) {
+          onNoteCreated();
+        }
         
-        onSaveText(noteForClientState);
         setText("");
         setIsAutosaving(false);
         setAutosaveComplete(true);

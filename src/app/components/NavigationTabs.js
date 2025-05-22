@@ -3,7 +3,7 @@
 const NavButton = ({ isActive, onClick, SvgIcon, label }) => (
   <button 
     onClick={onClick}
-    className={`px-6 py-3 rounded-lg flex items-center font-medium transition ${isActive ? "bg-white dark:bg-blue-900/30 text-blue-600 dark:text-blue-100 shadow-md border border-slate-200 dark:border-blue-800" : "hover:bg-slate-100 dark:hover:bg-blue-900/20 text-slate-600 dark:text-blue-200 hover:shadow-sm"}`}
+    className={`px-6 py-3 rounded-lg flex items-center font-medium transition ${isActive ? "bg-white dark:bg-blue-900/30 text-blue-600 dark:text-blue-100 shadow-md border border-blue-200 dark:border-blue-800" : "hover:bg-slate-100 dark:hover:bg-blue-900/20 text-slate-600 dark:text-blue-200 hover:shadow-sm"}`}
   >
     <SvgIcon />
     {label}
