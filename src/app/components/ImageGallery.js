@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow, parseISO } from 'date-fns';
+import Image from 'next/image';
 
 // Component for individual image item with auto-delete controls
 const ImageItem = ({ image, onDelete, onToggleAutoDelete, isDarkMode }) => {
@@ -71,10 +72,12 @@ const ImageItem = ({ image, onDelete, onToggleAutoDelete, isDarkMode }) => {
       className="group aspect-[4/3] rounded-xl overflow-hidden shadow-md bg-white dark:bg-blue-900/40 border border-blue-100 dark:border-blue-800 relative"
       style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
     >
-      <img 
+      <Image 
         src={image.url} 
         alt={image.alt || image.file_name || 'Gallery image'}
         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        width={300}
+        height={225}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3">
         {/* Top section for auto-delete controls */}
