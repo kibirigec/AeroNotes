@@ -35,7 +35,8 @@ export default function Home() {
     isLoadingNotes, 
     saveNoteHandler, 
     toggleNoteAutoDeleteHandler, 
-    reloadNotes
+    reloadNotes, 
+    deleteNoteHandler
   } = useNotes(user);
 
   const {
@@ -154,6 +155,7 @@ export default function Home() {
             onSaveText={saveNoteHandler}
             onToggleAutoDelete={toggleNoteAutoDeleteHandler}
             onNoteCreated={reloadNotes}
+            onDeleteNote={deleteNoteHandler}
           />
         );
       case "gallery":

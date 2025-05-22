@@ -248,3 +248,31 @@ html:not(.dark) .force-theme * {
   border-style: solid !important;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
 }
+
+@keyframes pulse-amber-border {
+  0%, 100% {
+    border-color: rgba(245, 158, 11, 0.4);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.2);
+  }
+  50% {
+    border-color: rgba(251, 191, 36, 0.7);
+    box-shadow: 0 0 0.5rem 0.15rem rgba(245, 158, 11, 0.15);
+  }
+}
+
+.animate-pulse-amber-border {
+  animation: pulse-amber-border 2.5s infinite;
+  border-style: dashed;
+}
+
+/* For dark mode, we reference the same animation. 
+   The JS already applies dark:border-amber-400/60, 
+   so the animation uses amber colors that should work well. 
+   If specific dark mode pulse colors are needed, a new animation or 
+   dark mode specific keyframe adjustments would be the way. */
+.dark .animate-pulse-amber-border {
+  /* The animation itself can be reused. If dark mode needs different base opacity for the border
+     during the pulse, it can be tricky with Tailwind's opacity modifiers clashing with direct
+     animation keyframe border-color. It's often better to define the animated border-color fully in the keyframes.
+     The current keyframes use rgba for full control. */
+}

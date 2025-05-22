@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 
-export default function StoredTexts({ texts, onToggleAutoDelete }) {
+export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isInteractingMap, setIsInteractingMap] = useState({});
   const [copiedItemId, setCopiedItemId] = useState(null);
@@ -147,14 +147,18 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
               {texts.map((item) => (
                 <li 
                   key={item.id} 
-                  className="p-3 bg-white dark:bg-blue-900/40 rounded-lg border border-slate-200 dark:border-blue-800 flex justify-between items-start shadow-sm"
+                  className={`p-3 bg-white dark:bg-blue-900/40 rounded-lg border dark:border-blue-800 flex justify-between items-start shadow-sm transition-all duration-300 ${
+                    item.autoDelete 
+                      ? 'border-amber-500/70 dark:border-amber-400/60 animate-pulse-amber-border border-2'
+                      : 'border-slate-200 dark:border-blue-800 border-1'
+                  }`}
                 >
                   <span className="flex-1 pr-4 break-all text-slate-700 dark:text-slate-200">{item.text}</span>
                   <div className="flex items-center">
                     <button 
                       onClick={() => handleCopyText(item.text, item.id)}
                       title="Copy text"
-                      className="p-1.5 mr-2 rounded-md hover:bg-slate-100 dark:hover:bg-blue-800 text-slate-500 dark:text-blue-300 hover:text-slate-700 dark:hover:text-blue-100 transition-colors"
+                      className="p-1.5 z-10 mr-2 bg-red rounded-md text-gray-500 dark:text-sky-400 hover:bg-gray-200 dark:hover:bg-sky-800 hover:text-gray-700 dark:hover:text-sky-200 transition-all duration-150 ease-in-out"
                     >
                       {copiedItemId === item.id ? (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -162,9 +166,18 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
                         </svg>
                       ) : (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                       )}
+                    </button>
+                    <button
+                      onClick={() => onDeleteNote(item.id)}
+                      title="Delete note immediately"
+                      className="p-1.5 mr-2 rounded-md text-rose-500 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-800 hover:text-rose-700 dark:hover:text-rose-200 transition-all duration-150 ease-in-out"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
                     </button>
                     <div className="flex flex-col items-end min-h-[2.5rem]">
                       <label htmlFor={`auto-delete-${item.id}`} className="text-sm text-slate-600 dark:text-blue-300">
@@ -181,6 +194,7 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
                         </span>
                       )}
                     </div>
+                    
                     <button
                       onClick={() => handleToggleClick(item.id)}
                       className={`

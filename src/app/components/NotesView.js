@@ -8,7 +8,8 @@ export default function NotesView({
   storedTexts, 
   onSaveText, 
   onToggleAutoDelete, 
-  onNoteCreated
+  onNoteCreated, 
+  onDeleteNote
 }) {
   // Force component to respect theme
   useEffect(() => {
@@ -25,7 +26,7 @@ export default function NotesView({
         <TextInput onSaveText={onSaveText} onNoteCreated={onNoteCreated} />
       </div>
       <div className="flex-1 min-h-[250px] flex flex-col">
-        <StoredTexts texts={storedTexts} onToggleAutoDelete={onToggleAutoDelete} />
+        <StoredTexts texts={storedTexts} onToggleAutoDelete={onToggleAutoDelete} onDeleteNote={onDeleteNote} />
       </div>
     </div>
   );
