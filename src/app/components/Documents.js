@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import DocumentCard from './DocumentCard';
 
 const Documents = ({ 
@@ -12,7 +12,41 @@ const Documents = ({
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Check for dark mode on mount and when it changes
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setIsDarkMode(isDark);
+      // Apply dark mode directly to the component
+      const container = document.getElementById('documents-container');
+      if (container) {
+        container.style.colorScheme = isDark ? 'dark' : 'light';
+      }
+    };
+
+    // Check initially
+    checkDarkMode();
+
+    // Watch for changes to the dark mode class
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          checkDarkMode();
+        }
+      });
+    });
+
+    // Start observing
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
@@ -80,7 +114,11 @@ const Documents = ({
   };
 
   return (
-    <div className="w-full bg-white/80 dark:bg-blue-950/70 rounded-2xl shadow-lg p-6 border border-blue-100 dark:border-blue-900">
+    <div 
+      id="documents-container"
+      className="w-full bg-white/80 dark:bg-blue-950/70 rounded-2xl shadow-lg p-6 border border-blue-100 dark:border-blue-900"
+      style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
+    >
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100">Documents</h2>
         <div className="flex items-center gap-2">
@@ -91,6 +129,7 @@ const Documents = ({
             accept=".pdf,.doc,.docx,.txt"
             className="hidden"
             disabled={isUploading}
+            style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
@@ -107,7 +146,7 @@ const Documents = ({
 
       {isUploading && (
         <div className="mb-6">
-          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700" style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}>
             <div 
               className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
               style={{ width: `${uploadProgress}%` }}
@@ -124,7 +163,10 @@ const Documents = ({
           <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
         </div>
       ) : documents.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-60 bg-white/50 dark:bg-blue-900/30 rounded-xl border border-dashed border-blue-200 dark:border-blue-800">
+        <div 
+          className="flex flex-col items-center justify-center h-60 bg-white/50 dark:bg-blue-900/30 rounded-xl border border-dashed border-blue-200 dark:border-blue-800"
+          style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
+        >
           <svg className="h-12 w-12 text-blue-300 dark:text-blue-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
           </svg>
@@ -147,6 +189,7 @@ const Documents = ({
               onDeleteDocument={onDeleteDocument}
               formatLastEdited={formatLastEdited}
               getDocRemainingTime={getDocRemainingTime}
+              isDarkMode={isDarkMode}
             />
           ))}
         </div>

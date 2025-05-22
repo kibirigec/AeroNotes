@@ -5,7 +5,9 @@ const DocumentCard = ({
   doc, 
   onToggleAutoDelete, 
   onDeleteDocument, 
-  formatLastEdited 
+  formatLastEdited, 
+  getDocRemainingTime,
+  isDarkMode
 }) => {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
@@ -67,24 +69,19 @@ const DocumentCard = ({
     previewUrl = `https://docs.google.com/gview?url=${encodeURIComponent(doc.content)}&embedded=true`;
   }
 
-  const handleToggleClick = () => {
+  const handleToggleAutoDelete = async () => {
     if (isInteracting) return;
-
     setIsInteracting(true);
 
-    if (!doc.auto_delete) {
-      setShowTimeoutOptions(true);
-      setIsInteracting(false);
-      return;
-    }
-
-    setTimeout(() => {
-      onToggleAutoDelete(doc.id, false);
-
+    try {
+      await onToggleAutoDelete(doc.id, !doc.auto_delete);
+    } catch (error) {
+      console.error("Failed to toggle auto delete:", error);
+    } finally {
       setTimeout(() => {
         setIsInteracting(false);
-      }, 300);
-    }, 150);
+      }, 500);
+    }
   };
 
   const expiryOptions = [
@@ -116,106 +113,110 @@ const DocumentCard = ({
     setSelectedExpiryDays(null);
   };
 
+  const handleDelete = () => {
+    if (window.confirm(`Are you sure you want to delete "${doc.title || doc.file_name}"?`)) {
+      onDeleteDocument(doc.id);
+    }
+  };
+
+  // Document type icon
+  const getDocumentIcon = () => {
+    const type = doc.content_type || '';
+    if (type.includes('pdf')) {
+      return (
+        <svg className="h-6 w-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+        </svg>
+      );
+    } else if (type.includes('word') || type.includes('doc')) {
+      return (
+        <svg className="h-6 w-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+      );
+    } else if (type.includes('text') || type.includes('txt')) {
+      return (
+        <svg className="h-6 w-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+      );
+    }
+    // Default document icon
+    return (
+      <svg className="h-6 w-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+      </svg>
+    );
+  };
+
   return (
     <>
-      <div className="bg-white/90 dark:bg-blue-900/40 rounded-xl p-4 border border-blue-100 dark:border-blue-800 hover:shadow-md transition flex flex-col">
-        <div className="flex items-start">
-          <div className="bg-blue-100 dark:bg-blue-800/60 p-2 rounded-lg mr-3">
-            <svg className="h-8 w-8 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-            </svg>
+      <div 
+        className="p-4 bg-white/70 dark:bg-blue-900/40 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col"
+        style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
+      >
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex items-center">
+            {getDocumentIcon()}
+            <h3 className="ml-2 text-lg font-medium text-blue-800 dark:text-blue-100 truncate max-w-[200px]" title={doc.title || doc.file_name}>
+              {doc.title || doc.file_name}
+            </h3>
           </div>
-          <div className="flex-1">
-            <div className="flex justify-between items-start">
-              <div className="flex-1 min-w-0 mr-4">
-                <h3 className="font-medium text-blue-800 dark:text-blue-100 " title={doc.file_name}>{doc.file_name}</h3>
-                <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">
-                  Last edited: {formatLastEdited(doc.lastEdited)}
-                </p>
-                <div className="flex mt-3">
-                  <button 
-                    onClick={handleOpenClick}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 mr-3"
-                  >
-                    Open
-                  </button>
-                  <button className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 mr-3">Share</button>
-                  <button 
-                    onClick={() => onDeleteDocument(doc.id)}
-                    className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-              <div className="flex-shrink-0">
-                <div className="flex items-center relative">
-                  <div className="flex flex-col items-end mr-2 h-8">
-                    <label htmlFor={`auto-delete-doc-${doc.id}`} className="text-xs text-blue-700 dark:text-blue-300">
-                      Auto-delete
-                    </label>
-                    {doc.auto_delete && doc.expiry_date && (
-                      <span className="text-xs text-orange-500 dark:text-orange-300 mt-0.5">
-                        {remainingTime ? `Expires ${remainingTime}` : 'Processing...'}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={handleToggleClick}
-                    className={`
-                      w-10 h-5 flex items-center rounded-full p-0.5 
-                      transition-colors duration-300 ease-in-out 
-                      transition-transform duration-150 ease-in-out
-                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800
-                      ${doc.auto_delete ? 'bg-green-500 dark:bg-green-600' : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'}
-                      ${isInteracting ? 'scale-95' : 'scale-100'}
-                    `}
-                    aria-pressed={doc.auto_delete}
-                    aria-label={`Toggle auto-delete for ${doc.file_name}`}
-                    disabled={isInteracting}
-                  >
-                    <span className={`
-                      bg-white dark:bg-gray-100 w-4 h-4 rounded-full shadow-md 
-                      transform transition-transform duration-300 ease-in-out
-                      ${doc.auto_delete ? 'translate-x-5' : 'translate-x-0'}
-                    `} />
-                  </button>
-
-                  {showTimeoutOptions && (
-                    <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg z-10 p-2 border border-blue-100 dark:border-blue-800 w-48">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300">Select Expiry</h4>
-                        <button 
-                          onClick={closeTimeoutSelector}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                      <div className="space-y-1">
-                        {expiryOptions.map((option) => (
-                          <button
-                            key={option.value}
-                            onClick={() => handleExpirySelect(option.value)}
-                            className={`
-                              w-full text-left px-3 py-1.5 text-xs rounded
-                              ${selectedExpiryDays === option.value 
-                                ? 'bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-200' 
-                                : 'hover:bg-blue-50 dark:hover:bg-blue-800 text-gray-700 dark:text-gray-300'}
-                            `}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+          <div className="flex items-center space-x-2">
+            <div className="flex flex-col items-end">
+              {doc.auto_delete && doc.expiry_date && (
+                <span className="text-xs text-orange-500 dark:text-orange-300 mb-1">
+                  {getDocRemainingTime ? getDocRemainingTime(doc.expiry_date) : `Expires soon`}
+                </span>
+              )}
+              <div className="flex items-center">
+                <label htmlFor={`auto-delete-doc-${doc.id}`} className="text-xs text-blue-700 dark:text-blue-300 mr-1.5">
+                  Auto-del
+                </label>
+                <button
+                  id={`auto-delete-doc-${doc.id}`}
+                  onClick={handleToggleAutoDelete}
+                  className={`w-9 h-4 flex items-center rounded-full p-0.5 transition-colors duration-300 ${doc.auto_delete ? 'bg-green-500' : 'bg-gray-500 hover:bg-gray-400'} ${isInteracting ? 'opacity-70' : ''}`}
+                  aria-pressed={doc.auto_delete}
+                  aria-label="Toggle auto-delete for document"
+                  disabled={isInteracting}
+                >
+                  <span className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform duration-300 ${doc.auto_delete ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
               </div>
             </div>
           </div>
+        </div>
+        
+        <div className="flex-grow">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {formatLastEdited ? formatLastEdited(doc.updated_at || doc.created_at) : 'Recently added'}
+            </span>
+            <a 
+              href={doc.content} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 inline-flex items-center"
+            >
+              View
+              <svg className="h-4 w-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+              </svg>
+            </a>
+          </div>
+        </div>
+        
+        <div className="flex justify-end mt-3">
+          <button 
+            onClick={handleDelete}
+            className="flex items-center text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+          >
+            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+            Delete
+          </button>
         </div>
       </div>
 

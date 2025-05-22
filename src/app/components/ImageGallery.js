@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow, parseISO } from 'date-fns';
 
 // Component for individual image item with auto-delete controls
-const ImageItem = ({ image, onDelete, onToggleAutoDelete }) => {
+const ImageItem = ({ image, onDelete, onToggleAutoDelete, isDarkMode }) => {
   const [isInteracting, setIsInteracting] = useState(false);
   const [showExpiryOptions, setShowExpiryOptions] = useState(false);
   const [selectedExpiryDays, setSelectedExpiryDays] = useState(null);
@@ -67,7 +67,10 @@ const ImageItem = ({ image, onDelete, onToggleAutoDelete }) => {
   };
 
   return (
-    <div className="group aspect-[4/3] rounded-xl overflow-hidden shadow-md bg-white dark:bg-blue-900/40 border border-blue-100 dark:border-blue-800 relative">
+    <div 
+      className="group aspect-[4/3] rounded-xl overflow-hidden shadow-md bg-white dark:bg-blue-900/40 border border-blue-100 dark:border-blue-800 relative"
+      style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
+    >
       <img 
         src={image.url} 
         alt={image.alt || image.file_name || 'Gallery image'}
@@ -149,7 +152,41 @@ export default function ImageGallery({
   const [uploadAutoDelete, setUploadAutoDelete] = useState(false);
   const [uploadExpiryDays, setUploadExpiryDays] = useState(30);
   const [showUploadExpiryOptions, setShowUploadExpiryOptions] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Check for dark mode on mount and when it changes
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setIsDarkMode(isDark);
+      // Apply dark mode directly to the component
+      const container = document.getElementById('gallery-container');
+      if (container) {
+        container.style.colorScheme = isDark ? 'dark' : 'light';
+      }
+    };
+
+    // Check initially
+    checkDarkMode();
+
+    // Watch for changes to the dark mode class
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          checkDarkMode();
+        }
+      });
+    });
+
+    // Start observing
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const uploadExpiryOptions = [
     { label: '10 seconds', value: 10 / 86400 }, // Approx 0.0001157 days
@@ -188,7 +225,10 @@ export default function ImageGallery({
     );
   } else if (images.length === 0) {
     content = (
-      <div className="flex flex-col items-center justify-center h-60 bg-white/50 dark:bg-blue-900/30 rounded-xl border border-dashed border-blue-200 dark:border-blue-800 p-6">
+      <div 
+        className="flex flex-col items-center justify-center h-60 bg-white/50 dark:bg-blue-900/30 rounded-xl border border-dashed border-blue-200 dark:border-blue-800 p-6"
+        style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
+      >
         <svg className="h-12 w-12 text-blue-300 dark:text-blue-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
         </svg>
@@ -204,6 +244,7 @@ export default function ImageGallery({
             image={image}
             onDelete={onImageDelete}
             onToggleAutoDelete={onToggleImageAutoDelete}
+            isDarkMode={isDarkMode}
           />
         ))}
       </div>
@@ -211,13 +252,20 @@ export default function ImageGallery({
   }
 
   return (
-    <div className="w-full bg-white/80 dark:bg-blue-950/70 rounded-2xl shadow-lg p-6 border border-blue-100 dark:border-blue-900">
+    <div 
+      id="gallery-container"
+      className="w-full bg-white/80 dark:bg-blue-950/70 rounded-2xl shadow-lg p-6 border border-blue-100 dark:border-blue-900"
+      style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
+    >
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100">Image Gallery</h2>
       </div>
 
       {/* Upload Section */}
-      <div className="mb-6 p-4 bg-white/50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+      <div 
+        className="mb-6 p-4 bg-white/50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+        style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
+      >
         <h3 className="text-lg font-medium text-blue-800 dark:text-blue-100 mb-3">Upload New Image</h3>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col sm:flex-row gap-3 items-start">
@@ -227,6 +275,7 @@ export default function ImageGallery({
               onChange={handleFileChange}
               ref={fileInputRef}
               className="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-800 file:text-blue-700 dark:file:text-blue-200 hover:file:bg-blue-100 dark:hover:file:bg-blue-700 cursor-pointer"
+              style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
             />
             <input 
               type="text" 
@@ -234,6 +283,7 @@ export default function ImageGallery({
               value={altText} 
               onChange={(e) => setAltText(e.target.value)}
               className="flex-grow p-2 rounded-md border border-blue-300 dark:border-blue-700 bg-white dark:bg-blue-900/50 focus:ring-2 focus:ring-blue-500 outline-none placeholder-blue-400 dark:placeholder-blue-500"
+              style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
             />
           </div>
           {/* Auto-delete options for upload */}
@@ -252,6 +302,7 @@ export default function ImageGallery({
                   }
                 }}
                 className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"
+                style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
               />
               <label htmlFor="upload-auto-delete" className="text-sm text-blue-700 dark:text-blue-300">
                 Auto-delete this image?
@@ -264,6 +315,7 @@ export default function ImageGallery({
                     value={uploadExpiryDays}
                     onChange={(e) => setUploadExpiryDays(parseInt(e.target.value, 10))}
                     className="p-1.5 rounded-md border border-blue-300 dark:border-blue-700 bg-white dark:bg-blue-900/50 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                    style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
                   >
                     {uploadExpiryOptions.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>

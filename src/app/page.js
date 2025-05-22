@@ -15,6 +15,16 @@ import { useNotes } from "../../lib/hooks/useNotes";
 import { useDocuments } from "../../lib/hooks/useDocuments";
 import { useGalleryImages } from "../../lib/hooks/useGalleryImages";
 
+// Helper function to enforce theme on all elements
+const enforceThemeOnAllElements = () => {
+  const isDark = document.documentElement.classList.contains('dark');
+  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+  const elements = document.querySelectorAll('.force-theme');
+  elements.forEach(el => {
+    el.style.colorScheme = isDark ? 'dark' : 'light';
+  });
+};
+
 export default function Home() {
   const { user, isAuthenticated, loading: authLoading, signOut, supabase } = useAuth();
   const router = useRouter();
@@ -44,6 +54,33 @@ export default function Home() {
   } = useGalleryImages(user);
 
   const initialFetchDone = useRef(false);
+
+  // Set up a theme change observer that will update all components
+  useEffect(() => {
+    // Apply theme on mount
+    enforceThemeOnAllElements();
+
+    // Create an observer to watch for class changes on the html element
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (
+          mutation.type === 'attributes' && 
+          mutation.attributeName === 'class'
+        ) {
+          enforceThemeOnAllElements();
+        }
+      });
+    });
+
+    // Start observing
+    observer.observe(document.documentElement, { 
+      attributes: true, 
+      attributeFilter: ['class'] 
+    });
+
+    // Clean up
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (user && !initialFetchDone.current) {
@@ -158,24 +195,20 @@ export default function Home() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col z-10">
+    <div className="min-h-screen flex flex-col force-theme bg-slate-100 dark:bg-gray-900">
       <PageHeader 
         user={user}
         isAuthenticated={isAuthenticated}
         onLogout={handleLogout}
         onLogin={() => router.push('/login')}
       />
-      <div className="flex-1 flex flex-col justify-center items-center">
-        <div className="w-full max-w-4xl mx-auto flex flex-col flex-1">
-          <NavigationTabs 
-            activeSection={activeSection} 
-            onSetSection={setActiveSection} 
-          />
-          <main className="p-4 lg:p-6 flex-1 h-full flex flex-col bg-white/70 dark:bg-blue-950/70">
-            {renderContent()}
-          </main>
-        </div>
-      </div>
+      <main className="flex-1 container mx-auto px-4 py-8 flex flex-col relative z-10">
+        <NavigationTabs 
+          activeSection={activeSection} 
+          onSetSection={setActiveSection} 
+        />
+        {renderContent()}
+      </main>
     </div>
   );
 }

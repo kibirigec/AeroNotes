@@ -1,0 +1,4 @@
+add reminders
+glowing
+glassmorphism
+redis + supabase

@@ -1,6 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
 
+// Helper function to apply theme to all force-theme elements
+const applyThemeToElements = (isDark) => {
+  const elements = document.querySelectorAll('.force-theme');
+  elements.forEach(el => {
+    el.style.colorScheme = isDark ? 'dark' : 'light';
+  });
+};
+
 export default function DarkModeToggle() {
   const [darkMode, setDarkMode] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -17,19 +25,40 @@ export default function DarkModeToggle() {
       setDarkMode(true);
       document.documentElement.classList.add("dark");
       document.documentElement.setAttribute("data-mode", "dark");
+      // Enforce dark mode styling
+      document.documentElement.style.colorScheme = "dark";
+      applyThemeToElements(true);
     } else {
       // Explicit light mode - remove dark mode classes and add light mode
       setDarkMode(false);
       document.documentElement.classList.remove("dark");
       localStorage.setItem("theme", "light");
       document.documentElement.setAttribute("data-mode", "light");
+      // Enforce light mode styling
+      document.documentElement.style.colorScheme = "light";
+      applyThemeToElements(false);
     }
 
-    // Override any browser preference
+    // Block and override any browser preference changes
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const mediaQueryListener = () => {
-      // Do nothing - we ignore changes to browser preferences
+      // Force the theme based on user preference, not browser
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+        document.documentElement.setAttribute("data-mode", "dark");
+        document.documentElement.style.colorScheme = "dark";
+        applyThemeToElements(true);
+      } else {
+        document.documentElement.classList.remove("dark");
+        document.documentElement.setAttribute("data-mode", "light");
+        document.documentElement.style.colorScheme = "light";
+        applyThemeToElements(false);
+      }
     };
+    
+    // Apply immediately and on changes
+    mediaQueryListener();
     darkModeMediaQuery.addEventListener('change', mediaQueryListener);
 
     return () => {
@@ -47,10 +76,14 @@ export default function DarkModeToggle() {
         document.documentElement.classList.add("dark");
         document.documentElement.setAttribute("data-mode", "dark");
         localStorage.setItem("theme", "dark");
+        document.documentElement.style.colorScheme = "dark";
+        applyThemeToElements(true);
       } else {
         document.documentElement.classList.remove("dark");
         document.documentElement.setAttribute("data-mode", "light");
         localStorage.setItem("theme", "light");
+        document.documentElement.style.colorScheme = "light";
+        applyThemeToElements(false);
       }
       // Reset animation state after a delay matching the CSS transition duration
       setTimeout(() => setIsAnimating(false), 800);

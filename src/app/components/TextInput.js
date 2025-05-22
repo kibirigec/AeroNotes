@@ -7,7 +7,41 @@ export default function TextInput({ onSaveText }) {
   const [isAutosaving, setIsAutosaving] = useState(false);
   const [autosaveComplete, setAutosaveComplete] = useState(false);
   const [error, setError] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const autosaveTimerRef = useRef(null);
+
+  // Check for dark mode on mount and when it changes
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setIsDarkMode(isDark);
+      // Apply dark mode directly to the component
+      const container = document.getElementById('text-input-container');
+      if (container) {
+        container.style.colorScheme = isDark ? 'dark' : 'light';
+      }
+    };
+
+    // Check initially
+    checkDarkMode();
+
+    // Watch for changes to the dark mode class
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          checkDarkMode();
+        }
+      });
+    });
+
+    // Start observing
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Setup autosave timer when text changes
   useEffect(() => {
@@ -104,9 +138,12 @@ export default function TextInput({ onSaveText }) {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-white/80 dark:bg-blue-950/70 rounded-2xl shadow-lg p-6 border border-blue-100 dark:border-blue-900">
+    <div 
+      id="text-input-container" 
+      className="w-full h-full flex flex-col bg-slate-50/90 dark:bg-blue-950/70 rounded-2xl shadow-lg p-6 border border-slate-200 dark:border-blue-900"
+    >
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100">Enter Your Text</h2>
+        <h2 className="text-xl font-semibold text-slate-800 dark:text-blue-100">Enter Your Text</h2>
         
         {/* Autosave indicator */}
         <div className="flex items-center">
@@ -141,7 +178,7 @@ export default function TextInput({ onSaveText }) {
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Text to paste (press Enter to submit)"
-        className="w-full flex-1 mt-4 p-4 rounded-xl bg-white/90 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800 focus:ring-2 focus:ring-blue-400 focus:border-transparent outline-none resize-none text-blue-900 dark:text-blue-50 placeholder-blue-400 dark:placeholder-blue-300/70 transition-all duration-300 min-h-[100px]"
+        className="w-full flex-1 mt-4 p-4 rounded-xl bg-white dark:bg-blue-900/40 border border-slate-300 dark:border-blue-800 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none resize-none text-slate-900 dark:text-blue-50 placeholder-slate-400 dark:placeholder-blue-300/70 transition-all duration-300 min-h-[100px]"
       />
       <div className="flex justify-end mt-4">
         <button 

@@ -5,6 +5,40 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isInteractingMap, setIsInteractingMap] = useState({});
   const [copiedItemId, setCopiedItemId] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Check for dark mode on mount and when it changes
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setIsDarkMode(isDark);
+      // Apply dark mode directly to the component
+      const container = document.getElementById('stored-texts-container');
+      if (container) {
+        container.style.colorScheme = isDark ? 'dark' : 'light';
+      }
+    };
+
+    // Check initially
+    checkDarkMode();
+
+    // Watch for changes to the dark mode class
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          checkDarkMode();
+        }
+      });
+    });
+
+    // Start observing
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Force re-render periodically for relative time updates if needed for expiry
   // This is a simple way, could be optimized with a more targeted approach if performance issues arise
@@ -74,12 +108,15 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-white/80 dark:bg-blue-950/70 rounded-2xl shadow-lg border border-blue-100 dark:border-blue-900">
+    <div 
+      id="stored-texts-container"
+      className="w-full h-full flex flex-col bg-slate-50/90 dark:bg-blue-950/70 rounded-2xl shadow-lg border border-slate-200 dark:border-blue-900"
+    >
       <div 
         onClick={toggleExpanded}
         className="flex justify-between items-center p-6 cursor-pointer"
       >
-        <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100">Stored Texts</h2>
+        <h2 className="text-xl font-semibold text-slate-800 dark:text-blue-100">Stored Texts</h2>
         <div className="flex items-center gap-2">
           {texts.length > 0 && (
             <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-0.5">
@@ -104,17 +141,20 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
           isExpanded ? 'opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="flex-1 p-6 pt-0 whitespace-pre-wrap text-blue-900 dark:text-blue-100 overflow-auto">
+        <div className="flex-1 p-6 pt-0 whitespace-pre-wrap text-slate-800 dark:text-blue-100 overflow-auto">
           {texts.length > 0 ? (
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {texts.map((item) => (
-                <li key={item.id} className="p-3 bg-white/70 dark:bg-blue-900/40 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-start">
-                  <span className="flex-1 pr-4 break-all">{item.text}</span>
+                <li 
+                  key={item.id} 
+                  className="p-3 bg-white dark:bg-blue-900/40 rounded-lg border border-slate-200 dark:border-blue-800 flex justify-between items-start shadow-sm"
+                >
+                  <span className="flex-1 pr-4 break-all text-slate-700 dark:text-slate-200">{item.text}</span>
                   <div className="flex items-center">
                     <button 
                       onClick={() => handleCopyText(item.text, item.id)}
                       title="Copy text"
-                      className="p-1.5 mr-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300 transition-colors"
+                      className="p-1.5 mr-2 rounded-md hover:bg-slate-100 dark:hover:bg-blue-800 text-slate-500 dark:text-blue-300 hover:text-slate-700 dark:hover:text-blue-100 transition-colors"
                     >
                       {copiedItemId === item.id ? (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -127,11 +167,11 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
                       )}
                     </button>
                     <div className="flex flex-col items-end min-h-[2.5rem]">
-                      <label htmlFor={`auto-delete-${item.id}`} className="text-sm text-blue-700 dark:text-blue-300">
+                      <label htmlFor={`auto-delete-${item.id}`} className="text-sm text-slate-600 dark:text-blue-300">
                         Auto-delete
                       </label>
                       {item.autoDelete && item.expiry_date && (
-                        <span className="text-xs text-orange-500 dark:text-orange-300 mt-0.5">
+                        <span className="text-xs text-orange-600 dark:text-orange-400 mt-0.5">
                           Expires {formatRelativeExpiry(item.expiry_date)}
                         </span>
                       )}
@@ -174,11 +214,13 @@ export default function StoredTexts({ texts, onToggleAutoDelete }) {
               ))}
             </ul>
           ) : (
-            <div className="flex flex-col items-center justify-center h-40 bg-white/50 dark:bg-blue-900/30 rounded-xl border border-dashed border-blue-200 dark:border-blue-800">
-              <svg className="h-10 w-10 text-blue-300 dark:text-blue-700 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <div 
+              className="flex flex-col items-center justify-center h-40 bg-white/80 dark:bg-blue-900/30 rounded-xl border border-dashed border-slate-300 dark:border-blue-800"
+            >
+              <svg className="h-10 w-10 text-slate-400 dark:text-blue-700 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
               </svg>
-              <p className="text-blue-500 dark:text-blue-400 text-sm">No stored texts yet</p>
+              <p className="text-slate-500 dark:text-blue-400 text-sm">No stored texts yet</p>
             </div>
           )}
         </div>

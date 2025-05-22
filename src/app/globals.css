@@ -9,6 +9,7 @@
   --shape-blue: #b3d1ff;
   --transition-speed: 1s;
   --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+  color-scheme: light !important;
 }
 
 .dark {
@@ -18,7 +19,7 @@
   --primary-blue-light: #2563eb;
   --primary-blue-dark: #1e40af;
   --shape-blue: #1e3a8a;
-  color-scheme: dark;
+  color-scheme: dark !important;
 }
 
 @theme inline {
@@ -30,9 +31,13 @@
 
 html {
   /* Always render using the light color-scheme by default. This prevents Chrome from recolouring when the user switches their OS/browser theme. */
-  color-scheme: light;
+  color-scheme: light !important;
   transition: color var(--transition-speed) var(--transition-timing), 
               background-color var(--transition-speed) var(--transition-timing);
+}
+
+html.dark {
+  color-scheme: dark !important;
 }
 
 body {
@@ -92,4 +97,154 @@ div {
   transition-property: color, background-color, border-color, opacity, transform;
   transition-duration: var(--transition-speed);
   transition-timing-function: var(--transition-timing);
+}
+
+/* Override media queries that might come from tailwind dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: light !important;
+  }
+  
+  html:not(.dark) {
+    color-scheme: light !important;
+  }
+  
+  html:not(.dark) * {
+    /* Ensure all elements in light mode stay in light mode */
+    color-scheme: light !important;
+  }
+
+  /* Explicitly override specific components */
+  html:not(.dark) .force-theme,
+  html:not(.dark) .force-theme * {
+    color-scheme: light !important;
+  }
+}
+
+/* Force dark mode on components when enabled */
+html.dark .force-theme,
+html.dark .force-theme * {
+  color-scheme: dark !important;
+}
+
+/* Force light mode when not in dark mode */
+html:not(.dark) .force-theme,
+html:not(.dark) .force-theme * {
+  color-scheme: light !important;
+}
+
+/* Explicit overrides for problematic components */
+.force-theme,
+.force-theme * {
+  forced-color-adjust: none !important;
+}
+
+/* Ensure Chrome respects our themes */
+@supports (-webkit-appearance: none) {
+  html:not(.dark) .force-theme,
+  html:not(.dark) .force-theme * {
+    -webkit-appearance: none;
+    appearance: none;
+    color-scheme: light !important;
+  }
+  
+  html.dark .force-theme,
+  html.dark .force-theme * {
+    -webkit-appearance: none;
+    appearance: none;
+    color-scheme: dark !important;
+  }
+}
+
+/* Direct overrides for form elements and components that might be using browser colors */
+/* These should match the background logic that's working correctly */
+
+/* Light mode - direct background colors for components */
+#text-input-container,
+#stored-texts-container,
+#gallery-container,
+#documents-container,
+.force-theme {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(37, 99, 235, 0.2) !important;
+  color: #0a2540 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Dark mode - direct background colors for components */
+.dark #text-input-container,
+.dark #stored-texts-container,
+.dark #gallery-container,
+.dark #documents-container,
+.dark .force-theme {
+  background-color: rgba(23, 37, 84, 0.7) !important;
+  border-color: rgba(30, 58, 138, 0.9) !important;
+  color: var(--foreground) !important;
+}
+
+/* Form controls in light mode */
+.force-theme input,
+.force-theme textarea,
+.force-theme select {
+  color-scheme: light !important;
+  background-color: rgba(255, 255, 255, 1) !important;
+  color: #0a2540 !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+}
+
+.force-theme button:not(.bg-blue-500):not(.bg-green-500):not(.bg-red-500) {
+  color-scheme: light !important;
+  background-color: rgba(243, 244, 246, 1) !important;
+  color: #2563eb !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+}
+
+/* Form controls in dark mode */
+.dark .force-theme input,
+.dark .force-theme textarea,
+.dark .force-theme select {
+  color-scheme: dark !important;
+  background-color: rgba(30, 58, 138, 0.4) !important;
+  color: #e6f0ff !important;
+  border-color: rgba(30, 64, 175, 0.8) !important;
+}
+
+.dark .force-theme button:not(.bg-blue-500):not(.bg-green-500):not(.bg-red-500) {
+  color-scheme: dark !important;
+  background-color: rgba(30, 58, 138, 0.4) !important;
+  color: #e6f0ff !important;
+  border-color: rgba(30, 64, 175, 0.8) !important;
+}
+
+/* Typography improvements for better contrast */
+.force-theme h1, 
+.force-theme h2, 
+.force-theme h3 {
+  color: #2563eb !important; /* primary-blue */
+}
+
+.dark .force-theme h1,
+.dark .force-theme h2,
+.dark .force-theme h3 {
+  color: #60a5fa !important; /* primary-blue-light */
+}
+
+.force-theme p,
+.force-theme span,
+.force-theme label {
+  color: #0a2540 !important; /* foreground */
+}
+
+.dark .force-theme p,
+.dark .force-theme span,
+.dark .force-theme label {
+  color: #e6f0ff !important; /* foreground */
+}
+
+/* Specific element improvements */
+.force-theme textarea,
+.force-theme input[type="text"] {
+  border-width: 1px !important;
+  border-style: solid !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
 }

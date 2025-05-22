@@ -3,7 +3,7 @@
 const NavButton = ({ isActive, onClick, SvgIcon, label }) => (
   <button 
     onClick={onClick}
-    className={`px-6 py-3 rounded-lg flex items-center font-medium transition ${isActive ? "bg-blue-100/70 dark:bg-blue-900/30 text-blue-800 dark:text-blue-100" : "hover:bg-blue-50/50 dark:hover:bg-blue-900/20 text-blue-700 dark:text-blue-200"}`}
+    className={`px-6 py-3 rounded-lg flex items-center font-medium transition ${isActive ? "bg-white dark:bg-blue-900/30 text-blue-600 dark:text-blue-100 shadow-md border border-slate-200 dark:border-blue-800" : "hover:bg-slate-100 dark:hover:bg-blue-900/20 text-slate-600 dark:text-blue-200 hover:shadow-sm"}`}
   >
     <SvgIcon />
     {label}
@@ -13,7 +13,7 @@ const NavButton = ({ isActive, onClick, SvgIcon, label }) => (
 const MobileNavButton = ({ isActive, onClick, label }) => (
   <button 
     onClick={onClick}
-    className={`px-4 py-2 rounded-lg font-medium text-sm ${isActive ? "bg-blue-100/70 dark:bg-blue-900/30 text-blue-800 dark:text-blue-100" : "hover:bg-blue-50/50 dark:hover:bg-blue-900/20 text-blue-700 dark:text-blue-200"}`}
+    className={`px-4 py-2 rounded-lg font-medium text-sm ${isActive ? "bg-white dark:bg-blue-800/50 text-blue-600 dark:text-blue-100 shadow-sm border border-slate-200 dark:border-blue-700" : "hover:bg-slate-100 dark:hover:bg-blue-900/30 text-slate-500 dark:text-blue-200"}`}
   >
     {label}
   </button>
@@ -49,7 +49,7 @@ export default function NavigationTabs({ activeSection, onSetSection }) {
         />
       </nav>
       {/* Mobile Navigation */}
-      <div className="lg:hidden flex justify-center border-b border-blue-100 dark:border-blue-900 bg-white/70 dark:bg-blue-950/80">
+      <div className="lg:hidden flex justify-center border-b border-slate-200 dark:border-blue-900 bg-slate-50/80 dark:bg-blue-950/80">
         <div className="flex space-x-2 p-2">
           <MobileNavButton 
             isActive={activeSection === "notes"}
