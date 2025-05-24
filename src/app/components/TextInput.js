@@ -1,47 +1,15 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { createNote } from "../../../lib/notesService";
+import { useAuth } from "../../../lib/AuthContext";
 
 export default function TextInput({ onNoteCreated }) {
   const [text, setText] = useState("");
   const [isAutosaving, setIsAutosaving] = useState(false);
   const [autosaveComplete, setAutosaveComplete] = useState(false);
   const [error, setError] = useState(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const autosaveTimerRef = useRef(null);
-
-  // Check for dark mode on mount and when it changes
-  useEffect(() => {
-    const checkDarkMode = () => {
-      const isDark = document.documentElement.classList.contains('dark');
-      setIsDarkMode(isDark);
-      // Apply dark mode directly to the component
-      const container = document.getElementById('text-input-container');
-      if (container) {
-        container.style.colorScheme = isDark ? 'dark' : 'light';
-      }
-    };
-
-    // Check initially
-    checkDarkMode();
-
-    // Watch for changes to the dark mode class
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          checkDarkMode();
-        }
-      });
-    });
-
-    // Start observing
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-    return () => observer.disconnect();
-  }, []);
+  const { supabase } = useAuth();
 
   // Setup autosave timer when text changes
   useEffect(() => {
@@ -130,11 +98,10 @@ export default function TextInput({ onNoteCreated }) {
 
   return (
     <div 
-      id="text-input-container" 
-      className="w-full h-full flex flex-col bg-slate-50/90 dark:bg-blue-950/70 rounded-2xl shadow-lg p-6 border border-slate-200 dark:border-blue-900"
+      className="w-full flex flex-col bg-slate-50/90 dark:bg-blue-950/70 rounded-2xl shadow-lg p-4 sm:p-6 border border-slate-200 dark:border-blue-900"
     >
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-slate-800 dark:text-blue-100">Enter Your Text</h2>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
+        <h2 className="text-lg sm:text-xl font-semibold text-slate-800 dark:text-blue-100">Enter Your Text</h2>
         
         {/* Autosave indicator */}
         <div className="flex items-center">
@@ -169,11 +136,11 @@ export default function TextInput({ onNoteCreated }) {
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Text to paste (press Enter to submit)"
-        className="w-full flex-1 mt-4 p-4 rounded-xl bg-white dark:bg-blue-900/40 border border-slate-300 dark:border-blue-800 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none resize-none text-slate-900 dark:text-blue-50 placeholder-slate-400 dark:placeholder-blue-300/70 transition-all duration-300 min-h-[100px]"
+        className="w-full mt-3 sm:mt-4 p-3 sm:p-4 rounded-xl bg-white dark:bg-blue-900/40 border border-slate-300 dark:border-blue-800 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent outline-none resize-none text-slate-900 dark:text-blue-50 placeholder-slate-400 dark:placeholder-blue-300/70 transition-all duration-300 min-h-[100px] sm:min-h-[120px]"
       />
-      <div className="flex justify-end mt-4">
+      <div className="flex justify-end mt-3 sm:mt-4">
         <button 
-          className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-xl shadow transition text-md dark:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-blue-100 dark:bg-[#152047] border border-blue-300 dark:border-blue-700 hover:bg-blue-200 dark:hover:bg-[#1a2655] hover:border-blue-400 dark:hover:border-blue-600 text-blue-700 dark:text-blue-300 font-semibold py-2 px-4 sm:px-6 rounded-xl shadow transition text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={!text.trim() || isAutosaving}
           onClick={handleSaveText}
         >

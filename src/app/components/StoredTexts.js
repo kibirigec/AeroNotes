@@ -5,40 +5,14 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
   const [isExpanded, setIsExpanded] = useState(true);
   const [isInteractingMap, setIsInteractingMap] = useState({});
   const [copiedItemId, setCopiedItemId] = useState(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [copyFallbackUsed, setCopyFallbackUsed] = useState(false);
+  const [showMobileClipboardInfo, setShowMobileClipboardInfo] = useState(false);
+  const [hoveredButton, setHoveredButton] = useState(null);
 
-  // Check for dark mode on mount and when it changes
-  useEffect(() => {
-    const checkDarkMode = () => {
-      const isDark = document.documentElement.classList.contains('dark');
-      setIsDarkMode(isDark);
-      // Apply dark mode directly to the component
-      const container = document.getElementById('stored-texts-container');
-      if (container) {
-        container.style.colorScheme = isDark ? 'dark' : 'light';
-      }
-    };
-
-    // Check initially
-    checkDarkMode();
-
-    // Watch for changes to the dark mode class
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          checkDarkMode();
-        }
-      });
-    });
-
-    // Start observing
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-    return () => observer.disconnect();
-  }, []);
+  // Check if we're in development and not using HTTPS
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isHTTPS = window.location.protocol === 'https:';
+  const showHTTPSNotice = isDevelopment && !isHTTPS && texts.length > 0;
 
   // Force re-render periodically for relative time updates if needed for expiry
   // This is a simple way, could be optimized with a more targeted approach if performance issues arise
@@ -47,6 +21,7 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
     const interval = setInterval(() => {
       setForceUpdate(prev => prev + 1);
     }, 60000); // Update every minute to refresh relative times
+
     return () => clearInterval(interval);
   }, []);
 
@@ -82,14 +57,89 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
   };
 
   const handleCopyText = async (textToCopy, itemId) => {
+    // Detect mobile devices
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
     try {
-      await navigator.clipboard.writeText(textToCopy);
-      setCopiedItemId(itemId);
-      setTimeout(() => {
-        setCopiedItemId(null);
-      }, 2000);
+      // Method 1: Try modern clipboard API first (works on most modern browsers with HTTPS)
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(textToCopy);
+        setCopiedItemId(itemId);
+        setCopyFallbackUsed(false);
+        setTimeout(() => {
+          setCopiedItemId(null);
+        }, 2000);
+        return;
+      }
+      
+      // Method 2: Fallback for iOS Safari and other browsers
+      // Create a temporary textarea element
+      const textArea = document.createElement('textarea');
+      textArea.value = textToCopy;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      textArea.style.opacity = '0';
+      textArea.setAttribute('readonly', '');
+      textArea.setAttribute('tabindex', '-1');
+      
+      document.body.appendChild(textArea);
+      
+      // For iOS Safari, we need to use a different approach
+      if (isIOS) {
+        const range = document.createRange();
+        range.selectNodeContents(textArea);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        textArea.setSelectionRange(0, 999999);
+      } else {
+        textArea.select();
+      }
+      
+      // Execute copy command
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        setCopiedItemId(itemId);
+        setCopyFallbackUsed(false);
+        setTimeout(() => {
+          setCopiedItemId(null);
+        }, 2000);
+      } else {
+        throw new Error('Copy command was unsuccessful');
+      }
+      
     } catch (err) {
       console.error("Failed to copy text: ", err);
+      setCopyFallbackUsed(true);
+      
+      // Method 3: Final fallback - show alert with text to manually copy
+      if (isIOS) {
+        // For iOS, show informative message
+        setShowMobileClipboardInfo(true);
+        setTimeout(() => {
+          alert(`📱 Copy on iOS Safari:\n\nThe text below will be shown for you to manually select and copy:\n\n"${textToCopy}"\n\nTip: Long press the text above to select it, then choose "Copy" from the menu.`);
+        }, 100);
+        setTimeout(() => {
+          setShowMobileClipboardInfo(false);
+        }, 5000);
+      } else if (isMobile) {
+        // For other mobile browsers
+        setTimeout(() => {
+          alert(`📱 Manual Copy Required:\n\n${textToCopy}\n\nPlease manually select and copy the text above.`);
+        }, 100);
+      } else {
+        // For desktop browsers
+        prompt('Copy this text:', textToCopy);
+      }
+      
+      // Reset fallback flag after a short delay
+      setTimeout(() => {
+        setCopyFallbackUsed(false);
+      }, 3000);
     }
   };
 
@@ -110,7 +160,7 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
   return (
     <div 
       id="stored-texts-container"
-      className="w-full h-full flex flex-col bg-slate-50/90 dark:bg-blue-950/70 rounded-2xl shadow-lg border border-slate-200 dark:border-blue-900"
+      className="w-full h-full flex flex-col bg-slate-50/90 dark:bg-blue-950/70 rounded-2xl shadow-lg border border-slate-300 dark:border-blue-800"
     >
       <div 
         onClick={toggleExpanded}
@@ -119,7 +169,7 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
         <h2 className="text-xl font-semibold text-slate-800 dark:text-blue-100">Stored Texts</h2>
         <div className="flex items-center gap-2">
           {texts.length > 0 && (
-            <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-0.5">
+            <span className="bg-blue-100 dark:bg-[#152047] border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 text-xs rounded-full px-2 py-0.5 font-semibold shadow">
               {texts.length}
             </span>
           )}
@@ -135,6 +185,32 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
         </div>
       </div>
       
+      {/* Mobile clipboard info banner */}
+      {showMobileClipboardInfo && (
+        <div className="mx-6 mb-4 p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
+          <div className="flex items-start">
+            <span className="text-amber-600 dark:text-amber-400 text-lg mr-2">📱</span>
+            <div className="text-sm text-amber-800 dark:text-amber-200">
+              <strong>Mobile Copy Guide:</strong> Due to browser security, automatic copy isn't available. 
+              Long press the text in the alert to select it, then choose "Copy" from the menu.
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* HTTPS development notice */}
+      {showHTTPSNotice && (
+        <div className="mx-6 mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
+          <div className="flex items-start">
+            <span className="text-blue-600 dark:text-blue-400 text-lg mr-2">🔒</span>
+            <div className="text-sm text-blue-800 dark:text-blue-200">
+              <strong>Development Notice:</strong> For full clipboard functionality on mobile devices, 
+              the app should be served over HTTPS. Currently using HTTP for development.
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Content with animation */}
       <div 
         className={`flex-1 overflow-hidden transition-all duration-300 ease-in-out flex flex-col ${
@@ -147,49 +223,70 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
               {texts.map((item) => (
                 <li 
                   key={item.id} 
-                  className={`p-3 bg-white dark:bg-blue-900/40 rounded-lg border dark:border-blue-800 flex justify-between items-start shadow-sm transition-all duration-300 ${
-                    item.autoDelete 
-                      ? 'border-amber-500/70 dark:border-amber-400/60 animate-pulse-amber-border border-2'
-                      : 'border-slate-200 dark:border-blue-800 border-1'
+                  className={`p-3 bg-white dark:bg-blue-900/40 rounded-lg border flex flex-col sm:flex-row sm:justify-between sm:items-start shadow-sm transition-all duration-300 gap-3 ${
+                    item.autoDelete && item.expiry_date
+                      ? 'amber-border-effect' 
+                      : 'border-slate-300 dark:border-blue-700'
                   }`}
                 >
-                  <span className="flex-1 pr-4 break-all text-slate-700 dark:text-slate-200">{item.text}</span>
-                  <div className="flex items-center">
+                  <span className="flex-1 min-w-0 break-words overflow-wrap-anywhere text-slate-700 dark:text-slate-200 sm:pr-4">{item.text}</span>
+                  <div className="flex items-center flex-shrink-0 justify-end sm:justify-start">
                     <button 
                       onClick={() => handleCopyText(item.text, item.id)}
-                      title="Copy text"
-                      className="p-1.5 z-10 mr-2 bg-red rounded-md text-gray-500 dark:text-sky-400 hover:bg-gray-200 dark:hover:bg-sky-800 hover:text-gray-700 dark:hover:text-sky-200 transition-all duration-150 ease-in-out"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleCopyText(item.text, item.id);
+                        }
+                      }}
+                      onMouseEnter={() => setHoveredButton(`copy-${item.id}`)}
+                      onMouseLeave={() => setHoveredButton(null)}
+                      title={copyFallbackUsed ? "Copy (manual method)" : "Copy text"}
+                      className={`p-2 z-10 mr-2 rounded-lg transition-all duration-150 ease-in-out shadow-lg hover:shadow-xl border font-medium
+                        ${copyFallbackUsed 
+                          ? 'bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-800/60 hover:border-amber-400 dark:hover:border-amber-600' 
+                          : 'bg-blue-100 dark:bg-[#152047] border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-[#1a2655] hover:border-blue-400 dark:hover:border-blue-600'
+                        }
+                        ${hoveredButton === `copy-${item.id}` ? 'transform -translate-y-0.5' : ''}
+                      `}
+                      aria-label={`Copy text: ${item.text.substring(0, 50)}${item.text.length > 50 ? '...' : ''}`}
                     >
                       {copiedItemId === item.id ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                         </svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                       )}
                     </button>
                     <button
                       onClick={() => onDeleteNote(item.id)}
+                      onMouseEnter={() => setHoveredButton(`delete-${item.id}`)}
+                      onMouseLeave={() => setHoveredButton(null)}
                       title="Delete note immediately"
-                      className="p-1.5 mr-2 rounded-md text-rose-500 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-800 hover:text-rose-700 dark:hover:text-rose-200 transition-all duration-150 ease-in-out"
+                      className={`p-2 mr-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-150 ease-in-out border font-medium
+                        bg-red-100 dark:bg-[#152047] border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 
+                        hover:bg-red-200 dark:hover:bg-red-900/30 hover:border-red-400 dark:hover:border-red-600
+                        ${hoveredButton === `delete-${item.id}` ? 'transform -translate-y-0.5' : ''}
+                      `}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
                     <div className="flex flex-col items-end min-h-[2.5rem]">
-                      <label htmlFor={`auto-delete-${item.id}`} className="text-sm text-slate-600 dark:text-blue-300">
+                      <label htmlFor={`auto-delete-${item.id}`} className="text-xs sm:text-sm text-slate-600 dark:text-blue-300 text-center sm:text-right">
                         Auto-delete
                       </label>
                       {item.autoDelete && item.expiry_date && (
-                        <span className="text-xs text-orange-600 dark:text-orange-400 mt-0.5">
+                        <span className="text-xs text-orange-600 dark:text-orange-400 mt-0.5 text-center sm:text-right">
                           Expires {formatRelativeExpiry(item.expiry_date)}
                         </span>
                       )}
                       {item.autoDelete && !item.expiry_date && (
-                         <span className="text-xs text-green-500 dark:text-green-400 mt-0.5">
+                         <span className="text-xs text-green-500 dark:text-green-400 mt-0.5 text-center sm:text-right">
                           On (Expiry pending)
                         </span>
                       )}
@@ -198,7 +295,7 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
                     <button
                       onClick={() => handleToggleClick(item.id)}
                       className={`
-                        w-10 h-5 flex items-center rounded-full p-0.5 
+                        w-10 h-5 flex items-center rounded-full p-0.5 ml-2 sm:ml-3
                         transition-colors duration-300 ease-in-out 
                         transition-transform duration-150 ease-in-out
                         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-gray-800
@@ -229,7 +326,7 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
             </ul>
           ) : (
             <div 
-              className="flex flex-col items-center justify-center h-40 bg-white/80 dark:bg-blue-900/30 rounded-xl border border-dashed border-slate-300 dark:border-blue-800"
+              className="flex flex-col items-center justify-center h-40 bg-white/80 dark:bg-blue-900/30 rounded-xl border border-dashed border-slate-400 dark:border-blue-700"
             >
               <svg className="h-10 w-10 text-slate-400 dark:text-blue-700 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>

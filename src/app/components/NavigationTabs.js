@@ -3,7 +3,11 @@
 const NavButton = ({ isActive, onClick, SvgIcon, label }) => (
   <button 
     onClick={onClick}
-    className={`px-6 py-3 rounded-lg flex items-center font-medium transition ${isActive ? "bg-white dark:bg-blue-900/30 text-blue-600 dark:text-blue-100 shadow-md border border-blue-200 dark:border-blue-800" : "hover:bg-slate-100 dark:hover:bg-blue-900/20 text-slate-600 dark:text-blue-200 hover:shadow-sm"}`}
+    className={`px-6 py-3 rounded-xl flex items-center font-semibold shadow transition border ${
+      isActive 
+        ? "bg-blue-200 dark:bg-[#1a2655] border-blue-400 dark:border-blue-600 text-blue-800 dark:text-blue-200" 
+        : "bg-blue-100 dark:bg-[#152047] border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-[#1a2655] hover:border-blue-400 dark:hover:border-blue-600"
+    }`}
   >
     <SvgIcon />
     {label}
@@ -13,7 +17,11 @@ const NavButton = ({ isActive, onClick, SvgIcon, label }) => (
 const MobileNavButton = ({ isActive, onClick, label }) => (
   <button 
     onClick={onClick}
-    className={`px-4 py-2 rounded-lg font-medium text-sm ${isActive ? "bg-white dark:bg-blue-800/50 text-blue-600 dark:text-blue-100 shadow-sm border border-slate-200 dark:border-blue-700" : "hover:bg-slate-100 dark:hover:bg-blue-900/30 text-slate-500 dark:text-blue-200"}`}
+    className={`px-4 py-2 rounded-xl font-semibold text-sm shadow transition border ${
+      isActive 
+        ? "bg-blue-200 dark:bg-[#1a2655] border-blue-400 dark:border-blue-600 text-blue-800 dark:text-blue-200" 
+        : "bg-blue-100 dark:bg-[#152047] border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-[#1a2655] hover:border-blue-400 dark:hover:border-blue-600"
+    }`}
   >
     {label}
   </button>
@@ -28,7 +36,7 @@ export default function NavigationTabs({ activeSection, onSetSection }) {
   return (
     <>
       {/* Desktop Navigation */}
-      <nav className="hidden lg:flex justify-center space-x-6 py-6">
+      <nav className="hidden md:flex justify-center space-x-4 lg:space-x-6 py-4 lg:py-6">
         <NavButton 
           isActive={activeSection === "notes"}
           onClick={() => onSetSection("notes")}
@@ -49,8 +57,8 @@ export default function NavigationTabs({ activeSection, onSetSection }) {
         />
       </nav>
       {/* Mobile Navigation */}
-      <div className="lg:hidden flex justify-center border-b border-slate-200 dark:border-blue-900 bg-slate-50/80 dark:bg-blue-950/80">
-        <div className="flex space-x-2 p-2">
+      <div className="md:hidden flex justify-center border-b border-slate-200 dark:border-blue-900 bg-slate-50/80 dark:bg-blue-950/80 mb-4 overflow-x-hidden">
+        <div className="flex space-x-2 p-3 max-w-full">
           <MobileNavButton 
             isActive={activeSection === "notes"}
             onClick={() => onSetSection("notes")}

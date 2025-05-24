@@ -10,26 +10,18 @@ import NavigationTabs from "./components/NavigationTabs";
 import NotesView from "./components/NotesView";
 import GalleryView from "./components/GalleryView";
 import DocumentsView from "./components/DocumentsView";
+import { PageLoadingSkeleton, ContentSkeleton } from "./components/Skeletons";
 import { useAuth } from "../../lib/AuthContext";
 import { useNotes } from "../../lib/hooks/useNotes";
 import { useDocuments } from "../../lib/hooks/useDocuments";
 import { useGalleryImages } from "../../lib/hooks/useGalleryImages";
-
-// Helper function to enforce theme on all elements
-const enforceThemeOnAllElements = () => {
-  const isDark = document.documentElement.classList.contains('dark');
-  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-  const elements = document.querySelectorAll('.force-theme');
-  elements.forEach(el => {
-    el.style.colorScheme = isDark ? 'dark' : 'light';
-  });
-};
 
 export default function Home() {
   const { user, isAuthenticated, loading: authLoading, signOut, supabase } = useAuth();
   const router = useRouter();
 
   const [activeSection, setActiveSection] = useState("notes");
+
   const { 
     storedTexts, 
     isLoadingNotes, 
@@ -56,33 +48,6 @@ export default function Home() {
   } = useGalleryImages(user);
 
   const initialFetchDone = useRef(false);
-
-  // Set up a theme change observer that will update all components
-  useEffect(() => {
-    // Apply theme on mount
-    enforceThemeOnAllElements();
-
-    // Create an observer to watch for class changes on the html element
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (
-          mutation.type === 'attributes' && 
-          mutation.attributeName === 'class'
-        ) {
-          enforceThemeOnAllElements();
-        }
-      });
-    });
-
-    // Start observing
-    observer.observe(document.documentElement, { 
-      attributes: true, 
-      attributeFilter: ['class'] 
-    });
-
-    // Clean up
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     if (user && !initialFetchDone.current) {
@@ -140,11 +105,7 @@ export default function Home() {
         (activeSection === "notes" && isLoadingNotes) || 
         (activeSection === "gallery" && isLoadingGalleryImages) || 
         (activeSection === "documents" && isLoadingDocuments)) {
-      return (
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
-        </div>
-      );
+      return <ContentSkeleton type={activeSection} />;
     }
     
     switch (activeSection) {
@@ -191,27 +152,27 @@ export default function Home() {
   }, [user, authLoading, router]);
 
   if (authLoading || (!user && router.asPath !== '/login' && typeof window !== 'undefined' && window.location.pathname !== '/login')) {
-      return (
-        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-100 via-indigo-50 to-purple-100 dark:from-blue-900 dark:via-indigo-950 dark:to-purple-900">
-          <div className="animate-spin h-10 w-10 border-4 border-blue-500 rounded-full border-t-transparent"></div>
-        </div>
-      );
+      return <PageLoadingSkeleton />;
   }
 
   return (
-    <div className="min-h-screen flex flex-col force-theme bg-slate-100 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-gray-900 overflow-x-hidden w-full">
       <PageHeader 
         user={user}
         isAuthenticated={isAuthenticated}
         onLogout={handleLogout}
         onLogin={() => router.push('/login')}
       />
-      <main className="flex-1 container mx-auto px-4 py-8 flex flex-col relative z-10">
-        <NavigationTabs 
-          activeSection={activeSection} 
-          onSetSection={setActiveSection} 
-        />
-        {renderContent()}
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex flex-col relative z-10">
+        <div className="w-full max-w-6xl mx-auto">
+          <NavigationTabs 
+            activeSection={activeSection} 
+            onSetSection={setActiveSection} 
+          />
+          <div className="w-full">
+            {renderContent()}
+          </div>
+        </div>
       </main>
     </div>
   );
