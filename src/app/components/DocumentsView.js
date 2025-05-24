@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import Documents from "./Documents"; // Assuming Documents is in the same directory
+import Documents from "./Documents";
 
 export default function DocumentsView({
   documents,
@@ -11,16 +10,8 @@ export default function DocumentsView({
   onToggleAutoDelete,
   formatLastEdited
 }) {
-  // Force component to respect theme
-  useEffect(() => {
-    const elements = document.querySelectorAll('.force-theme');
-    elements.forEach(el => {
-      el.style.colorScheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-    });
-  }, []);
-
   return (
-    <div className="force-theme">
+    <div className="w-full">
       <Documents 
         documents={documents}
         isLoading={isLoading}

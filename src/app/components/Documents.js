@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import DocumentCard from './DocumentCard';
+import { ContentSkeleton } from './Skeletons';
 
 const Documents = ({ 
   documents, 
@@ -12,42 +13,9 @@ const Documents = ({
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Check for dark mode on mount and when it changes
-  useEffect(() => {
-    const checkDarkMode = () => {
-      const isDark = document.documentElement.classList.contains('dark');
-      setIsDarkMode(isDark);
-      // Apply dark mode directly to the component
-      const container = document.getElementById('documents-container');
-      if (container) {
-        container.style.colorScheme = isDark ? 'dark' : 'light';
-      }
-    };
-
-    // Check initially
-    checkDarkMode();
-
-    // Watch for changes to the dark mode class
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          checkDarkMode();
-        }
-      });
-    });
-
-    // Start observing
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
+  // Handle file selection and upload
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -117,7 +85,6 @@ const Documents = ({
     <div 
       id="documents-container"
       className="w-full bg-white/80 dark:bg-blue-950/70 rounded-2xl shadow-lg p-6 border border-blue-100 dark:border-blue-900"
-      style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
     >
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100">Documents</h2>
@@ -129,12 +96,11 @@ const Documents = ({
             accept=".pdf,.doc,.docx,.txt"
             className="hidden"
             disabled={isUploading}
-            style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg shadow transition text-sm dark:bg-blue-700 dark:hover:bg-blue-600 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-blue-100 dark:bg-[#152047] border border-blue-300 dark:border-blue-700 hover:bg-blue-200 dark:hover:bg-[#1a2655] hover:border-blue-400 dark:hover:border-blue-600 text-blue-700 dark:text-blue-300 font-semibold py-2 px-4 rounded-xl shadow transition text-sm flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
@@ -146,9 +112,9 @@ const Documents = ({
 
       {isUploading && (
         <div className="mb-6">
-          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700" style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}>
+          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
             <div 
-              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
+              className="bg-[var(--primary-blue)] h-2.5 rounded-full transition-all duration-300" 
               style={{ width: `${uploadProgress}%` }}
             ></div>
           </div>
@@ -159,22 +125,19 @@ const Documents = ({
       )}
       
       {isLoadingDocuments ? (
-        <div className="flex justify-center items-center h-40">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
-        </div>
+        <ContentSkeleton type="documents" />
       ) : documents.length === 0 ? (
         <div 
           className="flex flex-col items-center justify-center h-60 bg-white/50 dark:bg-blue-900/30 rounded-xl border border-dashed border-blue-200 dark:border-blue-800"
-          style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
         >
-          <svg className="h-12 w-12 text-blue-300 dark:text-blue-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <svg className="h-12 w-12 text-blue-700 dark:text-blue-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
           </svg>
-          <p className="text-blue-500 dark:text-blue-400">No documents yet. Upload your first one!</p>
+          <p className="text-blue-700 dark:text-blue-300">No documents yet. Upload your first one!</p>
           <button 
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg shadow transition text-sm dark:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-4 bg-blue-100 dark:bg-[#152047] border border-blue-300 dark:border-blue-700 hover:bg-blue-200 dark:hover:bg-[#1a2655] hover:border-blue-400 dark:hover:border-blue-600 text-blue-700 dark:text-blue-300 font-semibold py-2 px-4 rounded-xl shadow transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Upload Your First Document
           </button>
@@ -189,7 +152,6 @@ const Documents = ({
               onDeleteDocument={onDeleteDocument}
               formatLastEdited={formatLastEdited}
               getDocRemainingTime={getDocRemainingTime}
-              isDarkMode={isDarkMode}
             />
           ))}
         </div>

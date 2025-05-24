@@ -89,13 +89,13 @@ export default function AutoDeleteSettings() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="text-sm px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+        className="text-sm px-3 py-1.5 bg-[var(--primary-blue)] hover:bg-[var(--primary-blue-dark)] text-white rounded-md transition-colors"
       >
         Auto-Delete Settings
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div className="absolute z-50 right-0 mt-2 w-80 sm:w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 border border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Auto-Delete Settings</h3>
             <button
@@ -110,7 +110,7 @@ export default function AutoDeleteSettings() {
 
           {isLoading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary-blue)]"></div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -196,7 +196,7 @@ export default function AutoDeleteSettings() {
                   onClick={handleSave}
                   disabled={isSaving}
                   className={`px-4 py-2 ${
-                    isSaving ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
+                    isSaving ? 'bg-gray-400 cursor-not-allowed' : 'bg-[var(--primary-blue)] hover:bg-[var(--primary-blue-dark)]'
                   } text-white rounded-md transition-colors ml-auto`}
                 >
                   {isSaving ? 'Saving...' : 'Save Settings'}

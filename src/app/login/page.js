@@ -47,7 +47,7 @@ export default function Login() {
   };
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 p-4 relative">
       <div className="w-full max-w-md bg-white/80 dark:bg-blue-950/70 rounded-2xl shadow-lg p-8 border border-blue-100 dark:border-blue-900">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center">
@@ -101,7 +101,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg shadow transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[var(--primary-blue)] hover:bg-[var(--primary-blue-dark)] text-white font-medium py-3 px-4 rounded-lg shadow transition focus:outline-none focus:ring-2 focus:ring-[var(--primary-blue-light)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <span className="flex items-center justify-center">

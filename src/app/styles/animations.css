@@ -47,6 +47,23 @@
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Pulse Amber Border Animation */
+@keyframes pulse-amber-border {
+  0%, 100% {
+    border-color: rgba(245, 158, 11, 0.4);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.2);
+  }
+  50% {
+    border-color: rgba(251, 191, 36, 0.7);
+    box-shadow: 0 0 0.5rem 0.15rem rgba(245, 158, 11, 0.15);
+  }
+}
+
+.animate-pulse-amber-border {
+  animation: pulse-amber-border 2.5s infinite;
+  border-style: dashed;
+}
+
 /* Scale Animation */
 @keyframes scale {
   0% { transform: scale(1); }
