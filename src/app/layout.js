@@ -2,6 +2,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import "./styles/animations.css";
 import { AuthProvider } from "../../lib/AuthContext";
+// Import AWS configuration to initialize Amplify
+import "../../lib/aws-config";
 
 const inter = Inter({ subsets: ["latin"] });
 
