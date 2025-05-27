@@ -7,3 +7,7 @@ Security:
 Rate Limiting: Implement rate limiting on the API routes, especially login-with-pin, to prevent brute-force attacks.
 Phone Number Validation: Consider a more robust library for phone number validation (e.g., libphonenumber-js).
 PIN Complexity: While you have length checks, ensure users understand PIN security limitations.
+
+able to delete ones account
+
+websockets

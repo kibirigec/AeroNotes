@@ -1,14 +1,25 @@
 import { NextResponse } from 'next/server';
-import supabaseAdmin from '../../../../../lib/supabaseAdmin'; // Corrected path
+import supabaseAdmin from '../../../../../lib/supabaseAdmin';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { OTPService } from '../../../../../lib/otp/OTPService.js';
+import { getOTPConfig } from '../../../../../lib/otp/config.js';
 
-// In-memory store for OTPs - this MUST be the same instance as in send-otp.js
-// In a real app, this shared state is problematic. Use Redis/DB instead.
-// For now, assuming Next.js might cache this module or we deploy to a single instance.
-// THIS IS A MAJOR LIMITATION FOR SCALABILITY AND RELIABILITY.
-const otpStore = new Map(); // This won't share state with send-otp.js in separate requests/serverless functions.
-                         // We need to address this. For now, proceeding with the logic, but highlighting the issue.
+// Initialize OTP service
+let otpService = null;
+
+async function getOTPServiceInstance() {
+  if (!otpService) {
+    otpService = OTPService.getInstance();
+    const config = getOTPConfig();
+    const initResult = await otpService.initialize(config);
+    
+    if (!initResult.success) {
+      throw new Error(`Failed to initialize OTP service: ${initResult.error}`);
+    }
+  }
+  return otpService;
+}
 
 // Function to derive a strong password for Supabase user (not used by end-user)
 // We use the phone number and a server-side secret to make it deterministic if needed, but unique per user.
@@ -28,48 +39,51 @@ export async function POST(request) {
   console.log("\n--- Verify OTP & Sign Up: Request received ---");
   try {
     const { phoneNumber, otp, pin } = await request.json();
-    console.log("Request body:", { phoneNumber, otp, pin });
+    console.log("Request body:", { phoneNumber, otp: '***', pin: '***' });
 
     if (!phoneNumber || !otp || !pin) {
-      console.error("Missing fields:", { phoneNumber, otp, pin });
+      console.error("Missing fields:", { phoneNumber: !!phoneNumber, otp: !!otp, pin: !!pin });
       return NextResponse.json({ error: 'Phone number, OTP, and PIN are required' }, { status: 400 });
     }
     
-    const afronautesPhoneNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-    if (!/^\+[1-9]\d{1,14}$/.test(afronautesPhoneNumber)) {
-       console.error("Invalid phone number format:", afronautesPhoneNumber);
+    const normalizedPhoneNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+    if (!/^\+[1-9]\d{1,14}$/.test(normalizedPhoneNumber)) {
+       console.error("Invalid phone number format:", normalizedPhoneNumber);
        return NextResponse.json({ error: 'Invalid phone number format.' }, { status: 400 });
     }
 
     if (pin.length < 4 || pin.length > 8 || !/^\d+$/.test(pin)) {
-        console.error("Invalid PIN format:", pin);
+        console.error("Invalid PIN format");
         return NextResponse.json({ error: 'PIN must be a 4 to 8 digit number.' }, { status: 400 });
     }
 
-    // --- OTP Store Limitation --- //
-    console.warn('OTP Verification Skipped: Due to in-memory store limitations across requests. Implement shared OTP store.');
-    // Actual OTP check would be here in a production system
-    // const storedOtpData = otpStore.get(afronautesPhoneNumber);
-    // if (!storedOtpData || storedOtpData.otp !== otp || storedOtpData.expiry < Date.now()) {
-    //   console.error("OTP validation failed (or would have failed). Stored:", storedOtpData, "Received OTP:", otp);
-    //   return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });
-    // }
-    // otpStore.delete(afronautesPhoneNumber); // OTP used, delete it
-    // --- End OTP Store Limitation --- //
+    // Verify OTP using the new OTP service
+    console.log("Verifying OTP...");
+    const service = await getOTPServiceInstance();
+    const otpResult = await service.verifyOTP(normalizedPhoneNumber, otp);
+    
+    if (!otpResult.success) {
+      console.error("OTP verification failed:", otpResult.error);
+      return NextResponse.json({ 
+        error: otpResult.error || 'Invalid or expired OTP' 
+      }, { status: 400 });
+    }
+    
+    console.log("✅ OTP verified successfully");
 
-    const lastFourDigits = afronautesPhoneNumber.slice(-4);
-    console.log("Processing for:", { afronautesPhoneNumber, lastFourDigits });
+    const lastFourDigits = normalizedPhoneNumber.slice(-4);
+    console.log("Processing signup for:", normalizedPhoneNumber);
 
     console.log("Hashing PIN...");
     const pinHash = await bcrypt.hash(pin, 10);
-    const supabasePassword = deriveSupabasePassword(afronautesPhoneNumber);
+    const supabasePassword = deriveSupabasePassword(normalizedPhoneNumber);
     console.log("PIN hashed. Derived Supabase password generated.");
 
     console.log("Creating Supabase auth user...");
     const { data: authUserResponse, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      phone: afronautesPhoneNumber, 
+      phone: normalizedPhoneNumber, 
       password: supabasePassword,
-      phone_confirm: true, // Auto-confirm the phone number since OTP was (notionally) verified
+      phone_confirm: true, // Auto-confirm the phone number since OTP was verified
     });
 
     if (authError) {
@@ -118,12 +132,12 @@ export async function POST(request) {
     }
     // ---- END DIAGNOSTIC ----
 
-    console.log("Upserting into user_profiles table...");
+    console.log("Creating user profile...");
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .upsert({
         id: createdUser.id, 
-        phone_number: afronautesPhoneNumber,
+        phone_number: normalizedPhoneNumber,
         phone_suffix: lastFourDigits,
         pin_hash: pinHash,
         is_pin_set: true,
@@ -140,7 +154,7 @@ export async function POST(request) {
     console.log("Attempting to sign in user automatically...");
     // Sign-in the user to get a session immediately (optional, but good UX)
     const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
-        phone: afronautesPhoneNumber, // Or email if you used that for signup
+        phone: normalizedPhoneNumber,
         password: supabasePassword,
     });
 
