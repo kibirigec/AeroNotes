@@ -12,22 +12,66 @@ export default function SignUpForm() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Convert Uganda phone number format to international format
+  const formatPhoneNumber = (phone) => {
+    // Remove all non-numeric characters
+    const cleaned = phone.replace(/\D/g, '');
+    
+    // If it starts with 0, replace with +256
+    if (cleaned.startsWith('0')) {
+      return '+256' + cleaned.substring(1);
+    }
+    
+    // If it starts with 256, add +
+    if (cleaned.startsWith('256')) {
+      return '+' + cleaned;
+    }
+    
+    // If it starts with +256, return as is
+    if (phone.startsWith('+256')) {
+      return phone;
+    }
+    
+    // If it's 9 digits and doesn't start with 0, assume it's missing the leading 7/0
+    if (cleaned.length === 9) {
+      return '+256' + cleaned;
+    }
+    
+    // Default: assume it needs +256 prefix
+    return '+256' + cleaned;
+  };
+
+  const handlePhoneNumberChange = (e) => {
+    const value = e.target.value;
+    // Remove all non-numeric characters
+    const numericValue = value.replace(/\D/g, '');
+    // Limit to 10 digits
+    if (numericValue.length <= 10) {
+      setPhoneNumber(numericValue);
+    }
+  };
+
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     setMessage('');
     try {
+      // Format the phone number before sending
+      const formattedPhone = formatPhoneNumber(phoneNumber);
+      
       const response = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber }),
+        body: JSON.stringify({ phoneNumber: formattedPhone }),
       });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Failed to send OTP');
       }
       setMessage(data.message || 'OTP sent successfully!');
+      // Update the phone number state with the formatted version
+      setPhoneNumber(formattedPhone);
       setStep(2);
     } catch (err) {
       setError(err.message);
@@ -132,24 +176,24 @@ export default function SignUpForm() {
               id="phoneNumber"
               type="tel"
               value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="+1 (555) 123-4567"
+              onChange={handlePhoneNumberChange}
+              placeholder="0772345678"
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-500 dark:text-white dark:focus:ring-blue-400 dark:focus:border-blue-400"
               required
             />
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Include country code (e.g., +1 for US)
+              Enter your Uganda mobile number (e.g., 0772345678)
             </p>
           </div>
           
           <button 
             type="submit" 
             disabled={isLoading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
+            className="w-full px-4 py-3 rounded-xl font-semibold text-sm shadow transition border bg-blue-200 dark:bg-[#1a2655] border-blue-400 dark:border-blue-600 text-blue-800 dark:text-blue-200 hover:bg-blue-300 dark:hover:bg-[#1e2a5a] hover:border-blue-500 dark:hover:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -190,7 +234,7 @@ export default function SignUpForm() {
             
             <div>
               <label htmlFor="pin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Create a PIN (4-8 digits)
+                Create a PIN (4 digits)
               </label>
               <input
                 id="pin"
@@ -198,13 +242,16 @@ export default function SignUpForm() {
                 value={pin}
                 onChange={(e) => {
                   const numericValue = e.target.value.replace(/[^0-9]/g, ''); // Allow only digits
-                  setPin(numericValue);
+                  // Limit to exactly 4 digits
+                  if (numericValue.length <= 4) {
+                    setPin(numericValue);
+                  }
                 }}
                 minLength="4"
-                maxLength="8"
-                pattern="^\d{4,8}$"
-                title="PIN must be 4 to 8 digits"
-                placeholder="Enter your PIN"
+                maxLength="4"
+                pattern="^\d{4}$"
+                title="PIN must be exactly 4 digits"
+                placeholder="Enter your 4-digit PIN"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-500 dark:text-white dark:focus:ring-blue-400 dark:focus:border-blue-400"
                 required
               />
@@ -217,18 +264,18 @@ export default function SignUpForm() {
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-sm shadow transition border bg-blue-100 dark:bg-[#152047] border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-[#1a2655] hover:border-blue-400 dark:hover:border-blue-600"
               >
                 Back
               </button>
               <button 
                 type="submit" 
                 disabled={isLoading}
-                className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-sm shadow transition border bg-blue-200 dark:bg-[#1a2655] border-blue-400 dark:border-blue-600 text-blue-800 dark:text-blue-200 hover:bg-blue-300 dark:hover:bg-[#1e2a5a] hover:border-blue-500 dark:hover:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>

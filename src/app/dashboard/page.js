@@ -158,7 +158,7 @@ export default function Dashboard() {
       <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-end py-2">
         <button 
           onClick={signOut} 
-          className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:bg-red-500 dark:hover:bg-red-600"
+          className="px-4 py-2 rounded-xl font-semibold text-sm shadow transition border bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/30 hover:border-red-300 dark:hover:border-red-700"
         >
           Sign Out
         </button>

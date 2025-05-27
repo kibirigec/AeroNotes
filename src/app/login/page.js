@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../../lib/AuthProvider";
 import LoginForm from "../components/auth/LoginForm";
@@ -8,6 +8,7 @@ import Link from "next/link";
 export default function LoginPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const [currentStep, setCurrentStep] = useState(1);
 
   useEffect(() => {
     if (user) {
@@ -27,19 +28,27 @@ export default function LoginPage() {
     return null; // Will redirect via useEffect
   }
 
+  const getInstructionText = () => {
+    return currentStep === 1 
+      ? "Enter your PIN to continue"
+      : "Last 4 digits of phone number";
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-gray-900 p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="flex items-center justify-center mb-4">
+          <div className="flex items-center justify-center mb-6">
             <span className="inline-block w-12 h-12 rounded-full bg-gradient-to-tr from-blue-400 to-blue-600 dark:from-blue-700 dark:to-blue-400 mr-3" />
             <h1 className="text-4xl font-bold text-blue-900 dark:text-blue-100 tracking-tight">AeroNotes</h1>
           </div>
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Welcome back</h2>
-          <p className="text-gray-600 dark:text-gray-400">Sign in to your account to continue</p>
+          <h2 className="text-2xl font-light text-gray-900 dark:text-gray-100 mb-2">Welcome back</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-8 transition-all duration-300">
+            {getInstructionText()}
+          </p>
         </div>
         
-        <LoginForm />
+        <LoginForm onStepChange={setCurrentStep} />
         
         <div className="text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">
