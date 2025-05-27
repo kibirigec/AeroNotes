@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from 'next/navigation';
 import TextInput from "./components/TextInput";
 import ImageGallery from "./components/ImageGallery";
 import StoredTexts from "./components/StoredTexts";
@@ -11,15 +10,11 @@ import NotesView from "./components/NotesView";
 import GalleryView from "./components/GalleryView";
 import DocumentsView from "./components/DocumentsView";
 import { PageLoadingSkeleton, ContentSkeleton } from "./components/Skeletons";
-import { useAuth } from "../../lib/AuthContext";
 import { useNotes } from "../../lib/hooks/useNotes";
 import { useDocuments } from "../../lib/hooks/useDocuments";
 import { useGalleryImages } from "../../lib/hooks/useGalleryImages";
 
 export default function Home() {
-  const { user, isAuthenticated, loading: authLoading, signOut, supabase } = useAuth();
-  const router = useRouter();
-
   const [activeSection, setActiveSection] = useState("notes");
 
   const { 
@@ -29,7 +24,7 @@ export default function Home() {
     toggleNoteAutoDeleteHandler, 
     reloadNotes, 
     deleteNoteHandler
-  } = useNotes(user);
+  } = useNotes();
 
   const {
     documents,
@@ -37,7 +32,7 @@ export default function Home() {
     addDocumentHandler,
     deleteDocumentHandler,
     toggleDocAutoDeleteHandler,
-  } = useDocuments(user);
+  } = useDocuments();
 
   const {
     galleryImages,
@@ -45,24 +40,22 @@ export default function Home() {
     uploadImageHandler,
     deleteImageHandler,
     toggleImageAutoDeleteHandler: toggleGalleryImageAutoDeleteHandler,
-  } = useGalleryImages(user);
+  } = useGalleryImages();
 
   const initialFetchDone = useRef(false);
 
   useEffect(() => {
-    if (user && !initialFetchDone.current) {
-      if (!initialFetchDone.current) {
-        initialFetchDone.current = true;
-      }
+    if (!initialFetchDone.current) {
+      initialFetchDone.current = true;
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     const intervalId = setInterval(async () => {
-      if (user && (activeSection === "documents" || documents.some(d => d.auto_delete))) {
+      if (activeSection === "documents" || documents.some(d => d.auto_delete)) {
         // ... (documents re-fetch logic - consider using reloadDocuments() from useDocuments)
       }
-      if (user && (activeSection === "gallery" || galleryImages.some(img => img.auto_delete))) {
+      if (activeSection === "gallery" || galleryImages.some(img => img.auto_delete)) {
         try {
           // Consider calling reloadGalleryImages() here if periodic refresh is needed from page level
         } catch (error) {
@@ -72,16 +65,7 @@ export default function Home() {
     }, 30000);
 
     return () => clearInterval(intervalId);
-  }, [user, activeSection, documents, galleryImages]);
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      router.push('/login');
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
+  }, [activeSection, documents, galleryImages]);
   
   const formatLastEdited = (timestamp) => {
     if (!timestamp) return 'N/A';
@@ -101,8 +85,7 @@ export default function Home() {
   };
 
   const renderContent = () => {
-    if (authLoading || 
-        (activeSection === "notes" && isLoadingNotes) || 
+    if ((activeSection === "notes" && isLoadingNotes) || 
         (activeSection === "gallery" && isLoadingGalleryImages) || 
         (activeSection === "documents" && isLoadingDocuments)) {
       return <ContentSkeleton type={activeSection} />;
@@ -145,24 +128,9 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login');
-    }
-  }, [user, authLoading, router]);
-
-  if (authLoading || (!user && router.asPath !== '/login' && typeof window !== 'undefined' && window.location.pathname !== '/login')) {
-      return <PageLoadingSkeleton />;
-  }
-
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-gray-900 overflow-x-hidden w-full">
-      <PageHeader 
-        user={user}
-        isAuthenticated={isAuthenticated}
-        onLogout={handleLogout}
-        onLogin={() => router.push('/login')}
-      />
+      <PageHeader />
       <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex flex-col relative z-10">
         <div className="w-full max-w-6xl mx-auto">
           <NavigationTabs 
