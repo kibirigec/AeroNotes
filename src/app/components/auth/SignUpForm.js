@@ -125,12 +125,15 @@ export default function SignUpForm() {
             <label htmlFor="pin">Choose PIN (4-8 digits):</label>
             <input
               id="pin"
-              type="password" // Use password type for PINs
+              type="text" // Keeping as text for now for visibility during debugging
               value={pin}
-              onChange={(e) => setPin(e.target.value)}
+              onChange={(e) => {
+                const numericValue = e.target.value.replace(/[^0-9]/g, ''); // Allow only digits
+                setPin(numericValue);
+              }}
               minLength="4"
               maxLength="8"
-              pattern="\\d{4,8}"
+              pattern="^\d{4,8}$" // Anchored pattern: 4 to 8 digits exactly
               title="PIN must be 4 to 8 digits"
               required
             />

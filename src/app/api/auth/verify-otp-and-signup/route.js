@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import supabaseAdmin from '../../../../lib/supabaseAdmin'; // Adjusted path
+import supabaseAdmin from '../../../../../lib/supabaseAdmin'; // Corrected path
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -25,47 +25,55 @@ function deriveSupabasePassword(phoneNumber) {
 }
 
 export async function POST(request) {
+  console.log("\n--- Verify OTP & Sign Up: Request received ---");
   try {
     const { phoneNumber, otp, pin } = await request.json();
+    console.log("Request body:", { phoneNumber, otp, pin });
 
     if (!phoneNumber || !otp || !pin) {
+      console.error("Missing fields:", { phoneNumber, otp, pin });
       return NextResponse.json({ error: 'Phone number, OTP, and PIN are required' }, { status: 400 });
     }
     
     const afronautesPhoneNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-    if (!/^\\+[1-9]\\d{1,14}$/.test(afronautesPhoneNumber)) {
+    if (!/^\+[1-9]\d{1,14}$/.test(afronautesPhoneNumber)) {
+       console.error("Invalid phone number format:", afronautesPhoneNumber);
        return NextResponse.json({ error: 'Invalid phone number format.' }, { status: 400 });
     }
 
-    if (pin.length < 4 || pin.length > 8 || !/^\\d+$/.test(pin)) {
+    if (pin.length < 4 || pin.length > 8 || !/^\d+$/.test(pin)) {
+        console.error("Invalid PIN format:", pin);
         return NextResponse.json({ error: 'PIN must be a 4 to 8 digit number.' }, { status: 400 });
     }
 
     // --- OTP Store Limitation --- //
-    // FIXME: The otpStore here is a new instance and won't have the OTP set by send-otp/route.js
-    // This needs to be replaced with a shared store (e.g., Redis, database table)
-    // For this example to proceed, we will *simulate* it being found for now.
-    // const storedOtpData = otpStore.get(afronautesPhoneNumber); 
-    // In a real setup, if (!storedOtpData) return NextResponse.json({ error: 'Invalid phone number or OTP not requested' }, { status: 400 });
-    // if (storedOtpData.expiry < Date.now()) return NextResponse.json({ error: 'OTP expired' }, { status: 400 });
-    // if (storedOtpData.otp !== otp) return NextResponse.json({ error: 'Invalid OTP' }, { status: 400 });
-    // otpStore.delete(afronautesPhoneNumber); // OTP used, delete it
     console.warn('OTP Verification Skipped: Due to in-memory store limitations across requests. Implement shared OTP store.');
+    // Actual OTP check would be here in a production system
+    // const storedOtpData = otpStore.get(afronautesPhoneNumber);
+    // if (!storedOtpData || storedOtpData.otp !== otp || storedOtpData.expiry < Date.now()) {
+    //   console.error("OTP validation failed (or would have failed). Stored:", storedOtpData, "Received OTP:", otp);
+    //   return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });
+    // }
+    // otpStore.delete(afronautesPhoneNumber); // OTP used, delete it
     // --- End OTP Store Limitation --- //
 
     const lastFourDigits = afronautesPhoneNumber.slice(-4);
+    console.log("Processing for:", { afronautesPhoneNumber, lastFourDigits });
+
+    console.log("Hashing PIN...");
     const pinHash = await bcrypt.hash(pin, 10);
     const supabasePassword = deriveSupabasePassword(afronautesPhoneNumber);
+    console.log("PIN hashed. Derived Supabase password generated.");
 
-    // Create Supabase auth user
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.createUser({
-      phone: afronautesPhoneNumber, // Store phone in auth.users for potential future use (e.g. password reset via phone)
+    console.log("Creating Supabase auth user...");
+    const { data: authUserResponse, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      phone: afronautesPhoneNumber, 
       password: supabasePassword,
-      // phone_confirm: true, // We've verified via OTP, so we can consider the phone confirmed.
+      // phone_confirm: true, // If you want to auto-confirm the phone number since OTP was (notionally) verified
     });
 
     if (authError) {
-      console.error('Supabase auth user creation error:', authError);
+      console.error('Supabase auth user creation error:', authError.message, authError);
       // Handle specific errors, e.g., if user (phone) already exists
       if (authError.message.includes('already registered')) {
         return NextResponse.json({ error: 'This phone number is already registered.' }, { status: 409 });
@@ -73,27 +81,33 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Failed to create user in Supabase auth', details: authError.message }, { status: 500 });
     }
 
-    if (!authUser || !authUser.user) {
-        return NextResponse.json({ error: 'Failed to create user in Supabase auth, no user returned' }, { status: 500 });
+    // Correctly access the user object from the response
+    const createdUser = authUserResponse?.user;
+    if (!createdUser) {
+        console.error('Failed to create user in Supabase auth, no user object returned in response. Full response:', authUserResponse);
+        return NextResponse.json({ error: 'Failed to create user in Supabase auth, no user object returned' }, { status: 500 });
     }
+    console.log("Supabase auth user created:", createdUser.id);
 
-    // Insert into user_profiles table
+    console.log("Inserting into user_profiles table...");
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .insert({
-        id: authUser.user.id, // Link to the auth.users table
-        full_phone_number: afronautesPhoneNumber,
-        last_four_digits: lastFourDigits,
+        id: createdUser.id, 
+        phone_number: afronautesPhoneNumber,
+        phone_suffix: lastFourDigits,
         pin_hash: pinHash,
       });
 
     if (profileError) {
-      console.error('Supabase profile creation error:', profileError);
-      // If profile creation fails, we should ideally delete the auth user to keep things consistent
-      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
+      console.error('Supabase profile creation error:', profileError.message, profileError);
+      await supabaseAdmin.auth.admin.deleteUser(createdUser.id);
+      console.log("Rolled back Supabase auth user creation due to profile error.");
       return NextResponse.json({ error: 'Failed to save user profile', details: profileError.message }, { status: 500 });
     }
+    console.log("User profile created successfully.");
 
+    console.log("Attempting to sign in user automatically...");
     // Sign-in the user to get a session immediately (optional, but good UX)
     const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
         phone: afronautesPhoneNumber, // Or email if you used that for signup
@@ -104,17 +118,17 @@ export async function POST(request) {
         console.error('Supabase sign-in error after signup:', signInError);
         // User is created but sign-in failed. This is unusual. 
         // The user can still log in using the PIN + last four flow.
-        return NextResponse.json({ message: 'Signup successful, but automatic sign-in failed. Please try logging in.', userId: authUser.user.id }, { status: 201 });
+        return NextResponse.json({ message: 'Signup successful, but automatic sign-in failed. Please try logging in.', userId: createdUser.id }, { status: 201 });
     }
 
     if (!signInData || !signInData.session) {
-        return NextResponse.json({ message: 'Signup successful, but automatic sign-in failed to return a session. Please try logging in.', userId: authUser.user.id }, { status: 201 });
+        return NextResponse.json({ message: 'Signup successful, but automatic sign-in failed to return a session. Please try logging in.', userId: createdUser.id }, { status: 201 });
     }
 
     // Return session to the client
     return NextResponse.json({ 
         message: 'Signup successful and signed in', 
-        userId: authUser.user.id,
+        userId: createdUser.id,
         session: signInData.session 
     });
 
