@@ -14,7 +14,13 @@ import { useNotes } from "../../lib/hooks/useNotes";
 import { useDocuments } from "../../lib/hooks/useDocuments";
 import { useGalleryImages } from "../../lib/hooks/useGalleryImages";
 
+// Auth imports
+import { useAuth } from "../../lib/AuthProvider";
+import SignUpForm from './components/auth/SignUpForm';
+import LoginForm from './components/auth/LoginForm';
+
 export default function Home() {
+  const { user, signOut, isLoading: isAuthLoading } = useAuth();
   const [activeSection, setActiveSection] = useState("notes");
 
   const { 
@@ -24,7 +30,7 @@ export default function Home() {
     toggleNoteAutoDeleteHandler, 
     reloadNotes, 
     deleteNoteHandler
-  } = useNotes();
+  } = useNotes(!!user);
 
   const {
     documents,
@@ -32,7 +38,7 @@ export default function Home() {
     addDocumentHandler,
     deleteDocumentHandler,
     toggleDocAutoDeleteHandler,
-  } = useDocuments();
+  } = useDocuments(!!user);
 
   const {
     galleryImages,
@@ -40,17 +46,22 @@ export default function Home() {
     uploadImageHandler,
     deleteImageHandler,
     toggleImageAutoDeleteHandler: toggleGalleryImageAutoDeleteHandler,
-  } = useGalleryImages();
+  } = useGalleryImages(!!user);
 
   const initialFetchDone = useRef(false);
 
   useEffect(() => {
-    if (!initialFetchDone.current) {
+    if (user && !initialFetchDone.current) {
       initialFetchDone.current = true;
     }
-  }, []);
+    if (!user) {
+        initialFetchDone.current = false;
+    }
+  }, [user]);
 
   useEffect(() => {
+    if (!user) return;
+
     const intervalId = setInterval(async () => {
       if (activeSection === "documents" || documents.some(d => d.auto_delete)) {
         // ... (documents re-fetch logic - consider using reloadDocuments() from useDocuments)
@@ -65,7 +76,7 @@ export default function Home() {
     }, 30000);
 
     return () => clearInterval(intervalId);
-  }, [activeSection, documents, galleryImages]);
+  }, [user, activeSection, documents, galleryImages]);
   
   const formatLastEdited = (timestamp) => {
     if (!timestamp) return 'N/A';
@@ -128,9 +139,37 @@ export default function Home() {
     }
   };
 
+  if (isAuthLoading) {
+    return <PageLoadingSkeleton />;
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-gray-900 p-4">
+        <div className="w-full max-w-md space-y-8">
+          <div>
+            <span className="inline-block w-10 h-10 rounded-full bg-gradient-to-tr from-blue-400 to-blue-600 dark:from-blue-700 dark:to-blue-400 mr-2" />
+            <h1 className="text-3xl font-bold text-blue-900 dark:text-blue-100 tracking-tight">AeroNotes</h1>
+          </div>
+          <SignUpForm />
+          <hr className="my-6 border-gray-300 dark:border-gray-700" />
+          <LoginForm />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-gray-900 overflow-x-hidden w-full">
       <PageHeader />
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-end py-2">
+        <button 
+          onClick={signOut} 
+          className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:bg-red-500 dark:hover:bg-red-600"
+        >
+          Sign Out
+        </button>
+      </div>
       <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex flex-col relative z-10">
         <div className="w-full max-w-6xl mx-auto">
           <NavigationTabs 
