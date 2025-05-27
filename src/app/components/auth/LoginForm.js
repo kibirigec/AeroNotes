@@ -56,7 +56,7 @@ export default function LoginForm() {
 
   return (
     <div>
-      <h3>Login with PIN</h3>
+      <h3>Login with PIN..</h3>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       {message && <p style={{ color: 'green' }}>{message}</p>}
       <form onSubmit={handleLogin}>
@@ -68,7 +68,7 @@ export default function LoginForm() {
             value={lastFourDigits}
             onChange={(e) => setLastFourDigits(e.target.value)}
             maxLength="4"
-            pattern="\\d{4}"
+            pattern="[0-9]{4}"
             title="Enter the last 4 digits of your phone number"
             required
           />
@@ -82,7 +82,7 @@ export default function LoginForm() {
             onChange={(e) => setPin(e.target.value)}
             minLength="4"
             maxLength="8"
-            pattern="\\d{4,8}"
+            pattern="[0-9]{4,8}"
             title="PIN must be 4 to 8 digits"
             required
           />

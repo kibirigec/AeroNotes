@@ -69,7 +69,7 @@ export async function POST(request) {
     const { data: authUserResponse, error: authError } = await supabaseAdmin.auth.admin.createUser({
       phone: afronautesPhoneNumber, 
       password: supabasePassword,
-      // phone_confirm: true, // If you want to auto-confirm the phone number since OTP was (notionally) verified
+      phone_confirm: true, // Auto-confirm the phone number since OTP was (notionally) verified
     });
 
     if (authError) {
@@ -89,18 +89,48 @@ export async function POST(request) {
     }
     console.log("Supabase auth user created:", createdUser.id);
 
-    console.log("Inserting into user_profiles table...");
+    // ---- BEGIN DIAGNOSTIC ----
+    console.log(`[DIAGNOSTIC] Checking if user ${createdUser.id} exists in auth.users before profile insert...`);
+    const { data: userCheck, error: userCheckError } = await supabaseAdmin
+      .schema('auth')
+      .from('users')
+      .select('id')
+      .eq('id', createdUser.id)
+      .maybeSingle();
+
+    if (userCheckError) {
+      console.error('[DIAGNOSTIC] Error checking auth.users:', userCheckError.message);
+    } else {
+      console.log(`[DIAGNOSTIC] auth.users check for ${createdUser.id}:`, userCheck ? 'Found' : 'Not Found', userCheck);
+    }
+
+    console.log(`[DIAGNOSTIC] Checking if profile for user ${createdUser.id} exists in user_profiles before insert...`);
+    const { data: profileCheck, error: profileCheckError } = await supabaseAdmin
+      .from('user_profiles')
+      .select('id')
+      .eq('id', createdUser.id)
+      .maybeSingle();
+
+    if (profileCheckError) {
+      console.error('[DIAGNOSTIC] Error checking user_profiles:', profileCheckError.message);
+    } else {
+      console.log(`[DIAGNOSTIC] user_profiles check for ${createdUser.id}:`, profileCheck ? 'Found' : 'Not Found', profileCheck);
+    }
+    // ---- END DIAGNOSTIC ----
+
+    console.log("Upserting into user_profiles table...");
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .insert({
+      .upsert({
         id: createdUser.id, 
         phone_number: afronautesPhoneNumber,
         phone_suffix: lastFourDigits,
         pin_hash: pinHash,
+        is_pin_set: true,
       });
 
     if (profileError) {
-      console.error('Supabase profile creation error:', profileError.message, profileError);
+      console.error('Supabase profile upsert error:', profileError.message, profileError);
       await supabaseAdmin.auth.admin.deleteUser(createdUser.id);
       console.log("Rolled back Supabase auth user creation due to profile error.");
       return NextResponse.json({ error: 'Failed to save user profile', details: profileError.message }, { status: 500 });

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import supabaseAdmin from '../../../../lib/supabaseAdmin'; // Adjusted path
+import supabaseAdmin from '../../../../../lib/supabaseAdmin'; // Fixed path
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -23,19 +23,19 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Last four digits of phone and PIN are required' }, { status: 400 });
     }
 
-    if (lastFourDigits.length !== 4 || !/^\\d{4}$/.test(lastFourDigits)) {
+    if (lastFourDigits.length !== 4 || !/^\d{4}$/.test(lastFourDigits)) {
         return NextResponse.json({ error: 'Invalid format for last four digits.' }, { status: 400 });
     }
 
-    if (pin.length < 4 || pin.length > 8 || !/^\\d+$/.test(pin)) {
+    if (pin.length < 4 || pin.length > 8 || !/^\d+$/.test(pin)) {
         return NextResponse.json({ error: 'PIN must be a 4 to 8 digit number.' }, { status: 400 });
     }
 
     // Find user profiles matching the last four digits
     const { data: profiles, error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .select('id, full_phone_number, pin_hash')
-      .eq('last_four_digits', lastFourDigits);
+      .select('id, phone_number, pin_hash')
+      .eq('phone_suffix', lastFourDigits);
 
     if (profileError) {
       console.error('Error fetching user profiles:', profileError);
@@ -53,7 +53,7 @@ export async function POST(request) {
       const pinMatch = await bcrypt.compare(pin, profile.pin_hash);
       if (pinMatch) {
         authenticatedUser = profile; // We found our user
-        userFullPhoneNumber = profile.full_phone_number;
+        userFullPhoneNumber = profile.phone_number;
         break;
       }
     }
