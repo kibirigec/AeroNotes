@@ -12,9 +12,13 @@ import {
   asyncHandler 
 } from '../../../../lib/core/errors/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { trackRequest } from '../../../../lib/core/monitoring/requestTracker.js';
 
 export const GET = asyncHandler(async (req) => {
   try {
+    // Track this request
+    trackRequest('/api/notes', 'GET', 200);
+    
     // Extract user from auth middleware (simplified for Next.js API routes)
     const userId = req.headers.get('x-user-id');
     if (!userId) {
@@ -48,6 +52,9 @@ export const GET = asyncHandler(async (req) => {
   } catch (error) {
     console.error('Get notes error:', error);
     
+    // Track error
+    trackRequest('/api/notes', 'GET', error.statusCode || 500);
+    
     const errorResponse = sendErrorResponse(null, error);
     return Response.json(errorResponse, { 
       status: errorResponse.statusCode 
@@ -57,6 +64,9 @@ export const GET = asyncHandler(async (req) => {
 
 export const POST = asyncHandler(async (req) => {
   try {
+    // Track this request
+    trackRequest('/api/notes', 'POST', 201);
+    
     // Extract user from auth middleware
     const userId = req.headers.get('x-user-id');
     if (!userId) {
@@ -85,6 +95,9 @@ export const POST = asyncHandler(async (req) => {
     
   } catch (error) {
     console.error('Create note error:', error);
+    
+    // Track error
+    trackRequest('/api/notes', 'POST', error.statusCode || 500);
     
     const errorResponse = sendErrorResponse(null, error);
     return Response.json(errorResponse, { 

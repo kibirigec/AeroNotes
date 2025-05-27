@@ -11,9 +11,13 @@ import {
   sendErrorResponse,
   asyncHandler 
 } from '../../../../lib/core/errors/index.js';
+import { trackRequest } from '../../../../lib/core/monitoring/requestTracker.js';
 
 export const GET = asyncHandler(async (req) => {
   try {
+    // Track this health check request
+    trackRequest('/api/health', 'GET', 200);
+    
     const url = new URL(req.url);
     const includeMetrics = url.searchParams.get('metrics') === 'true';
     
@@ -42,6 +46,7 @@ export const GET = asyncHandler(async (req) => {
     
     if (hasUnhealthyServices) {
       response.data.status = 'degraded';
+      trackRequest('/api/health', 'GET', 503); // Track as service unavailable
       return Response.json(response, { status: 503 });
     }
     
@@ -49,6 +54,9 @@ export const GET = asyncHandler(async (req) => {
     
   } catch (error) {
     console.error('Health check error:', error);
+    
+    // Track this as an error
+    trackRequest('/api/health', 'GET', 503);
     
     const errorResponse = sendErrorResponse(null, error);
     return Response.json({
