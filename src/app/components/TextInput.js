@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { createNote } from "../../../lib/notesService";
-import { useAuth } from "../../../lib/AuthContext";
 
 export default function TextInput({ onNoteCreated }) {
   const [text, setText] = useState("");
@@ -9,7 +8,6 @@ export default function TextInput({ onNoteCreated }) {
   const [autosaveComplete, setAutosaveComplete] = useState(false);
   const [error, setError] = useState(null);
   const autosaveTimerRef = useRef(null);
-  const { supabase } = useAuth();
 
   // Setup autosave timer when text changes
   useEffect(() => {
