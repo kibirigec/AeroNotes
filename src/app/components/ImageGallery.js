@@ -3,11 +3,16 @@ import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import Image from 'next/image';
 import { ContentSkeleton } from './Skeletons';
+import { compressImage, getCompressionInfo } from '../../../lib/utils/imageCompression';
 
 // Component for individual image item with auto-delete controls
 const ImageItem = ({ image, onDelete, onToggleAutoDelete }) => {
   const [isInteracting, setIsInteracting] = useState(false);
   const [remainingTime, setRemainingTime] = useState('');
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [imageUrl, setImageUrl] = useState(image.url);
 
   // Format remaining time like the text notes component
   const formatRemainingTime = (isoString) => {
@@ -49,6 +54,43 @@ const ImageItem = ({ image, onDelete, onToggleAutoDelete }) => {
     }
   }, [image.auto_delete, image.expiry_date]);
 
+  // Auto-retry for recent images that fail to load
+  useEffect(() => {
+    if (imageError && image.isRecent && retryCount < 3) {
+      const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5s
+      console.log(`Auto-retrying image load for ${image.file_name} in ${retryDelay}ms (attempt ${retryCount + 1})`);
+      
+      const timer = setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+        setImageError(false);
+        setImageLoading(true);
+        // Add a new cache buster for retry
+        setImageUrl(image.url.split('?')[0] + `?cb=${Date.now()}`);
+      }, retryDelay);
+
+      return () => clearTimeout(timer);
+    }
+  }, [imageError, image.isRecent, image.url, image.file_name, retryCount]);
+
+  const handleImageLoad = () => {
+    setImageLoading(false);
+    setImageError(false);
+    setRetryCount(0); // Reset retry count on success
+  };
+
+  const handleImageError = () => {
+    setImageLoading(false);
+    setImageError(true);
+  };
+
+  const handleManualRetry = () => {
+    setImageError(false);
+    setImageLoading(true);
+    setRetryCount(0);
+    // Force a new cache buster for manual retry
+    setImageUrl(image.url.split('?')[0] + `?cb=${Date.now()}`);
+  };
+
   const handleToggleClick = () => {
     if (isInteracting) return;
     setIsInteracting(true);
@@ -74,12 +116,54 @@ const ImageItem = ({ image, onDelete, onToggleAutoDelete }) => {
         ? 'amber-border-effect' 
         : 'border-blue-300 dark:border-blue-700'
     }`}>
+      {/* Loading state */}
+      {imageLoading && !imageError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-100 dark:bg-blue-800/50">
+          <div className="flex flex-col items-center gap-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {image.isRecent ? 'Processing...' : 'Loading...'}
+            </span>
+          </div>
+        </div>
+      )}
+      
+      {/* Error state with retry info */}
+      {imageError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-100 dark:bg-blue-800/50">
+          <div className="flex flex-col items-center gap-2 text-center p-4">
+            <svg className="h-8 w-8 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+            </svg>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {image.isRecent && retryCount < 3 ? 
+                `Loading... (attempt ${retryCount + 1})` : 
+                'Failed to load'
+              }
+            </span>
+            {(!image.isRecent || retryCount >= 3) && (
+              <button 
+                onClick={handleManualRetry}
+                className="text-xs text-blue-500 hover:text-blue-600 underline"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      
       <img 
-        src={image.url} 
+        src={imageUrl} 
         alt={image.alt || image.file_name || 'Gallery image'}
-        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${
+          imageLoading ? 'opacity-0' : 'opacity-100'
+        }`}
         width={300}
         height={225}
+        onLoad={handleImageLoad}
+        onError={handleImageError}
+        loading="lazy"
       />
       
       {/* Subtle expiry time for auto-delete items */}
@@ -119,7 +203,7 @@ const ImageItem = ({ image, onDelete, onToggleAutoDelete }) => {
                 onClick={async () => {
                   try {
                     // Use fetch to download the image as blob for better cross-browser support
-                    const response = await fetch(image.url);
+                    const response = await fetch(imageUrl);
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
                     const link = document.createElement('a');
@@ -133,7 +217,7 @@ const ImageItem = ({ image, onDelete, onToggleAutoDelete }) => {
                     console.error('Error downloading image:', error);
                     // Fallback to direct link if fetch fails
                     const link = document.createElement('a');
-                    link.href = image.url;
+                    link.href = imageUrl;
                     link.download = image.file_name || `image_${Date.now()}`;
                     document.body.appendChild(link);
                     link.click();
@@ -172,28 +256,84 @@ export default function ImageGallery({
   isLoading = false, 
   onImageUpload,
   onImageDelete,
-  onToggleImageAutoDelete
+  onToggleImageAutoDelete,
+  onRefresh
 }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [altText, setAltText] = useState("");
   const [uploadAutoDelete, setUploadAutoDelete] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionInfo, setCompressionInfo] = useState(null);
+  const [showSyncNotification, setShowSyncNotification] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Show sync notification when recent images are detected
+  useEffect(() => {
+    const recentImages = images.filter(img => img.isRecent);
+    if (recentImages.length > 0) {
+      setShowSyncNotification(true);
+      const timer = setTimeout(() => {
+        setShowSyncNotification(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [images]);
 
   const handleFileChange = (event) => {
     if (event.target.files && event.target.files[0]) {
-      setSelectedFile(event.target.files[0]);
+      const file = event.target.files[0];
+      setSelectedFile(file);
+      
+      // Get compression info for the selected file
+      const info = getCompressionInfo(file);
+      setCompressionInfo(info);
     }
   };
 
   const handleUploadClick = async () => {
     if (selectedFile && onImageUpload) {
-      // Use 1/24 days (1 hour) as the default expiry when auto-delete is enabled
-      await onImageUpload(selectedFile, altText, uploadAutoDelete, uploadAutoDelete ? 1/24 : undefined);
-      setSelectedFile(null);
-      setAltText("");
-      setUploadAutoDelete(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      setIsUploading(true);
+      
+      try {
+        let fileToUpload = selectedFile;
+        
+        // Compress image if it's compressible
+        if (compressionInfo?.canCompress) {
+          setIsCompressing(true);
+          try {
+            fileToUpload = await compressImage(selectedFile);
+            console.log(`Compression saved ${((selectedFile.size - fileToUpload.size) / 1024 / 1024).toFixed(2)}MB`);
+          } catch (error) {
+            console.error('Compression failed, using original file:', error);
+            fileToUpload = selectedFile;
+          } finally {
+            setIsCompressing(false);
+          }
+        }
+        
+        // Use 1/24 days (1 hour) as the default expiry when auto-delete is enabled
+        await onImageUpload(fileToUpload, altText, uploadAutoDelete, uploadAutoDelete ? 1/24 : undefined);
+        setSelectedFile(null);
+        setAltText("");
+        setUploadAutoDelete(false);
+        setCompressionInfo(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        
+        // Give a small delay to ensure the new image appears
+        setTimeout(() => {
+          if (onRefresh) {
+            onRefresh();
+          }
+        }, 500);
+      } catch (error) {
+        console.error("Upload failed:", error);
+        alert("Upload failed. Please try again.");
+      } finally {
+        setIsUploading(false);
+        setIsCompressing(false);
       }
     }
   };
@@ -234,7 +374,32 @@ export default function ImageGallery({
     >
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100">Image Gallery</h2>
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            disabled={isLoading}
+            className="bg-blue-100 dark:bg-[#152047] border border-blue-300 dark:border-blue-700 hover:bg-blue-200 dark:hover:bg-[#1a2655] hover:border-blue-400 dark:hover:border-blue-600 text-blue-700 dark:text-blue-300 font-semibold py-1.5 px-3 rounded-lg shadow transition text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            title="Refresh gallery"
+          >
+            <svg className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Refresh
+          </button>
+        )}
       </div>
+
+      {/* Sync notification */}
+      {showSyncNotification && (
+        <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
+          <div className="flex items-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500"></div>
+            <span className="text-sm text-green-700 dark:text-green-300">
+              Syncing new images from other devices...
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Upload Section */}
       <div 
@@ -259,7 +424,7 @@ export default function ImageGallery({
             />
           </div>
           {/* Auto-delete options for upload */}
-          <div className="flex flex-col sm:flex-row gap-3 items-center mt-1 relative">
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center mt-1">
             <div className="flex items-center">
               <input 
                 type="checkbox"
@@ -270,25 +435,68 @@ export default function ImageGallery({
                 }}
                 className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"
               />
-              <label htmlFor="upload-auto-delete" className="text-sm text-blue-700">
+              <label htmlFor="upload-auto-delete" className="text-sm text-blue-700 dark:text-blue-300">
                 Auto-delete this image in 1 hour?
               </label>
             </div>
+            
+            <button
+              onClick={handleUploadClick}
+              disabled={!selectedFile || isLoading || isUploading}
+              className="bg-blue-100 dark:bg-[#152047] border border-blue-300 dark:border-blue-700 hover:bg-blue-200 dark:hover:bg-[#1a2655] hover:border-blue-400 dark:hover:border-blue-600 text-blue-700 dark:text-blue-300 font-semibold py-2 px-4 rounded-xl shadow transition text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 sm:ml-auto"
+            >
+              {isCompressing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                  Compressing...
+                </>
+              ) : isUploading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                   <path strokeLineCap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                  </svg>
+                  Upload
+                </>
+              )}
+            </button>
           </div>
-          
-          <button
-            onClick={handleUploadClick}
-            disabled={!selectedFile || isLoading}
-            className="bg-blue-100 dark:bg-[#152047] border border-blue-300 dark:border-blue-700 hover:bg-blue-200 dark:hover:bg-[#1a2655] hover:border-blue-400 dark:hover:border-blue-600 text-blue-700 dark:text-blue-300 font-semibold py-2 px-4 sm:px-6 rounded-xl shadow transition text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 sm:self-end"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-             <path stroke-linecap="round" stroke-linejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-            </svg>
-            Upload
-          </button>
         </div>
         {selectedFile && (
-          <p className="text-xs text-gray-600 mt-2">Selected: {selectedFile.name}</p>
+          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <span className="font-medium">Selected:</span> {selectedFile.name}
+              </p>
+              <p className="text-sm text-blue-600 dark:text-blue-300">
+                <span className="font-medium">Size:</span> {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+              </p>
+              
+              {compressionInfo && (
+                <div className="mt-1">
+                  {compressionInfo.canCompress ? (
+                    <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      <span>Image will be compressed (~{compressionInfo.estimatedSavings.toFixed(1)}MB saved)</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      <span>{compressionInfo.reason}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
       

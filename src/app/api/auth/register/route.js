@@ -21,6 +21,10 @@ export const POST = asyncHandler(async (req, res) => {
     const authService = getAuthService();
     const user = await authService.register(phoneNumber, pin);
     
+    // Generate JWT tokens for immediate authentication
+    const accessToken = authService.generateJWTToken(user);
+    const refreshToken = authService.generateRefreshToken(user.id);
+    
     return Response.json({
       success: true,
       data: {
@@ -28,6 +32,12 @@ export const POST = asyncHandler(async (req, res) => {
           id: user.id,
           phone: user.phone,
           createdAt: user.createdAt,
+        },
+        tokens: {
+          accessToken,
+          refreshToken,
+          tokenType: 'Bearer',
+          expiresIn: '7d',
         },
         message: 'User registered successfully',
       },

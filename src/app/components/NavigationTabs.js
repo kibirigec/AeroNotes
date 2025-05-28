@@ -64,7 +64,7 @@ export default function NavigationTabs({ activeSection, onSetSection, newContent
         />
       </nav>
       {/* Mobile Navigation */}
-      <div className="md:hidden flex justify-center border-b border-slate-200 dark:border-blue-900 bg-slate-50/80 dark:bg-blue-950/80 mb-4 overflow-x-hidden">
+      <div className="md:hidden flex justify-center border border-slate-200 dark:border-blue-900 bg-slate-50/80 dark:bg-blue-950/80 rounded-xl mb-4 overflow-x-hidden">
         <div className="flex space-x-2 p-3 max-w-full">
           <MobileNavButton 
             isActive={activeSection === "notes"}

@@ -229,7 +229,7 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
                       : 'border-slate-300 dark:border-blue-700'
                   }`}
                 >
-                  <span className="flex-1 min-w-0 break-words overflow-wrap-anywhere text-slate-700 dark:text-slate-200 sm:pr-4">{item.text}</span>
+                  <span className="flex-1 min-w-0 break-words overflow-wrap-anywhere text-slate-500 dark:text-slate-400 sm:pr-4">{item.text}</span>
                   <div className="flex items-center flex-shrink-0 justify-end sm:justify-start">
                     <button 
                       onClick={() => handleCopyText(item.text, item.id)}

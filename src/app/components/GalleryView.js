@@ -7,7 +7,8 @@ export default function GalleryView({
   isLoading,
   onImageUpload,
   onImageDelete,
-  onToggleImageAutoDelete
+  onToggleImageAutoDelete,
+  onRefresh
 }) {
   return (
     <div className="w-full">
@@ -17,6 +18,7 @@ export default function GalleryView({
         onImageUpload={onImageUpload} 
         onImageDelete={onImageDelete}
         onToggleImageAutoDelete={onToggleImageAutoDelete}
+        onRefresh={onRefresh}
       />
     </div>
   );

@@ -105,17 +105,39 @@ export default function Dashboard() {
 
   // Realtime sync callbacks
   const handleFileAdded = useCallback((newFile) => {
+    console.log('📁 Dashboard: File added via realtime:', newFile);
+    
     // Update badge for appropriate section
     if (newFile.bucket_id === 'images') {
       setBadgeWithTimer("gallery");
-      // Add the new image to existing state instead of reloading
-      setGalleryImages(prevImages => {
-        // Check if image already exists to prevent duplicates
-        if (prevImages.some(img => img.id === newFile.id)) {
-          return prevImages;
-        }
-        return [newFile, ...prevImages].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      });
+      
+      // Add a small delay for images to ensure they're accessible
+      setTimeout(() => {
+        setGalleryImages(prevImages => {
+          // Check if image already exists to prevent duplicates
+          if (prevImages.some(img => img.id === newFile.id)) {
+            console.log('🔄 Dashboard: Image already exists, skipping duplicate');
+            return prevImages;
+          }
+          
+          // Generate URL if not present (realtime sync might not include it)
+          let imageUrl = newFile.url;
+          if (!imageUrl && newFile.file_path && newFile.bucket_id) {
+            console.log('🔗 Dashboard: Generating URL for realtime image');
+            imageUrl = supabase.storage.from(newFile.bucket_id).getPublicUrl(newFile.file_path).data.publicUrl;
+          }
+          
+          // Ensure the new image has a cache-busted URL
+          const imageWithFreshUrl = {
+            ...newFile,
+            url: imageUrl && imageUrl.includes('?cb=') ? imageUrl : `${imageUrl || ''}?cb=${Date.now()}`,
+            isRecent: true
+          };
+          
+          console.log('✅ Dashboard: Adding new image to gallery:', imageWithFreshUrl.file_name);
+          return [imageWithFreshUrl, ...prevImages].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        });
+      }, 500); // Small delay to ensure file is accessible
     } else if (newFile.bucket_id === 'aeronotes-documents') {
       setBadgeWithTimer("documents");
       // Add the new document to existing state instead of reloading
@@ -133,7 +155,21 @@ export default function Dashboard() {
     // Update specific item in state instead of reloading
     if (updatedFile.bucket_id === 'images') {
       setGalleryImages(prevImages => 
-        prevImages.map(img => img.id === updatedFile.id ? updatedFile : img)
+        prevImages.map(img => {
+          if (img.id === updatedFile.id) {
+            // Generate URL if not present
+            let imageUrl = updatedFile.url;
+            if (!imageUrl && updatedFile.file_path && updatedFile.bucket_id) {
+              imageUrl = supabase.storage.from(updatedFile.bucket_id).getPublicUrl(updatedFile.file_path).data.publicUrl;
+            }
+            
+            return {
+              ...updatedFile,
+              url: imageUrl || img.url // Fallback to existing URL if generation fails
+            };
+          }
+          return img;
+        })
       );
     } else if (updatedFile.bucket_id === 'aeronotes-documents') {
       setDocuments(prevDocs => 
@@ -305,6 +341,7 @@ export default function Dashboard() {
             onImageUpload={uploadImageHandler}
             onImageDelete={deleteImageHandler}
             onToggleImageAutoDelete={toggleGalleryImageAutoDeleteHandler}
+            onRefresh={reloadGalleryImages}
           />
         );
       case "documents":
