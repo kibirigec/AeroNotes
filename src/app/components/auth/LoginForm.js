@@ -125,24 +125,84 @@ export default function LoginForm({ onStepChange }) {
       }
       
       if (data.session) {
-        const { error: sessionError } = await supabase.auth.setSession(data.session);
-        if (sessionError) {
-          console.error("Error setting session on client:", sessionError);
-          setError("Login successful, but failed to update client session.");
-        } else {
-          setMessage("Welcome back!");
+        // Instead of manually setting session, try a more robust approach
+        try {
+          // First approach: Set the session
+          const { error: sessionError } = await supabase.auth.setSession(data.session);
+          
+          if (sessionError) {
+            console.error("Primary session setting failed:", sessionError);
+            
+            // Fallback: Try direct authentication with credentials (mobile-friendly)
+            if (data.credentials?.phone && data.credentials?.password) {
+              console.log("Attempting fallback authentication with credentials...");
+              try {
+                const { data: fallbackAuth, error: fallbackError } = await supabase.auth.signInWithPassword({
+                  phone: data.credentials.phone,
+                  password: data.credentials.password,
+                });
+                
+                if (fallbackError) {
+                  console.error("Fallback authentication failed:", fallbackError);
+                  setError("Login successful, but session update failed. Please try again or refresh the page.");
+                } else if (fallbackAuth?.session) {
+                  console.log("Fallback authentication successful!");
+                  setMessage("Welcome back!");
+                  // Reset form
+                  setPin(['', '', '', '']);
+                  setPhoneSuffix(['', '', '', '']);
+                  setShowPhoneSuffix(false);
+                  onStepChange?.(1);
+                } else {
+                  setError("Login successful, but failed to establish session. Please try again.");
+                }
+              } catch (fallbackException) {
+                console.error("Fallback authentication exception:", fallbackException);
+                setError("Login successful, but session update failed. Please refresh the page.");
+              }
+            } else {
+              // Original retry logic as final fallback
+              setTimeout(async () => {
+                try {
+                  const { data: refreshedSession, error: refreshError } = await supabase.auth.getSession();
+                  if (refreshError) {
+                    console.error("Session refresh failed:", refreshError);
+                    setError("Login successful, but session update failed. Please refresh the page.");
+                  } else if (refreshedSession?.session) {
+                    setMessage("Welcome back!");
+                    // Reset form
+                    setPin(['', '', '', '']);
+                    setPhoneSuffix(['', '', '', '']);
+                    setShowPhoneSuffix(false);
+                    onStepChange?.(1);
+                  } else {
+                    setError("Login successful, but session not found. Please try logging in again.");
+                  }
+                } catch (retryError) {
+                  console.error("Session retry failed:", retryError);
+                  setError("Login successful, but session update failed. Please refresh the page.");
+                }
+              }, 1000); // Wait 1 second before retry
+            }
+            
+          } else {
+            setMessage("Welcome back!");
+            // Reset form immediately on success
+            setPin(['', '', '', '']);
+            setPhoneSuffix(['', '', '', '']);
+            setShowPhoneSuffix(false);
+            onStepChange?.(1);
+          }
+        } catch (sessionSetError) {
+          console.error("Exception during session setting:", sessionSetError);
+          setError("Login successful, but failed to update client session. Please refresh the page.");
         }
       } else {
-        setError("Login successful, but no session data received.");
+        setError("Login successful, but no session data received. Please try again.");
       }
 
-      // Reset form
-      setPin(['', '', '', '']);
-      setPhoneSuffix(['', '', '', '']);
-      setShowPhoneSuffix(false);
-      onStepChange?.(1); // Reset to step 1
-
     } catch (err) {
+      console.error("Login error:", err);
       setError(err.message);
     } finally {
       setIsLoading(false);

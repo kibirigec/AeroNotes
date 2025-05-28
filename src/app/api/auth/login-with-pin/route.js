@@ -62,28 +62,41 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid login credentials (PIN mismatch)' }, { status: 401 });
     }
 
-    // If PIN is correct, sign in with Supabase using the derived password
+    // Generate the Supabase password for this user
     const supabasePassword = deriveSupabasePassword(userFullPhoneNumber);
     
-    const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
-      phone: userFullPhoneNumber, 
-      password: supabasePassword,
-    });
+    try {
+      // Try to sign in with Supabase using the derived password
+      const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+        phone: userFullPhoneNumber, 
+        password: supabasePassword,
+      });
 
-    if (signInError) {
-      console.error('Supabase sign-in error:', signInError);
-      return NextResponse.json({ error: 'Failed to sign in with Supabase', details: signInError.message }, { status: 500 });
-    }
-    
-    if (!signInData || !signInData.session) {
-        return NextResponse.json({ error: 'Sign in successful, but failed to return a session.'}, { status: 500 });
-    }
+      if (signInError) {
+        console.error('Supabase sign-in error:', signInError);
+        return NextResponse.json({ error: 'Failed to sign in with Supabase', details: signInError.message }, { status: 500 });
+      }
+      
+      if (!signInData || !signInData.session) {
+          return NextResponse.json({ error: 'Sign in successful, but failed to return a session.'}, { status: 500 });
+      }
 
-    return NextResponse.json({ 
-        message: 'Login successful', 
-        userId: authenticatedUser.id,
-        session: signInData.session 
-    });
+      // Return both session and credentials for fallback authentication
+      return NextResponse.json({ 
+          message: 'Login successful', 
+          userId: authenticatedUser.id,
+          session: signInData.session,
+          // Provide fallback credentials for mobile issues
+          credentials: {
+            phone: userFullPhoneNumber,
+            password: supabasePassword
+          }
+      });
+
+    } catch (error) {
+      console.error('Authentication error:', error);
+      return NextResponse.json({ error: 'Authentication failed', details: error.message }, { status: 500 });
+    }
 
   } catch (error) {
     console.error('Login with PIN Error:', error);
