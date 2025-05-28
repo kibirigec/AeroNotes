@@ -5,36 +5,27 @@
 
 import { NextResponse } from 'next/server';
 import AuthService from '../../../../../lib/services/auth/AuthService.js';
-import SessionService from '../../../../../lib/services/auth/SessionService.js';
+import DatabaseSessionService from '../../../../../lib/services/auth/DatabaseSessionService.js';
 import { 
   ValidationError,
   AuthenticationError,
   sendErrorResponse 
 } from '../../../../../lib/core/errors/index.js';
-import { applySecurity } from '../../middleware/security.js';
-
-// Apply security middleware
-const securityOptions = {
-  rateLimit: {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 login attempts per window
-  }
-};
 
 export async function POST(request) {
-  // Apply security middleware
-  const middlewareResult = await applySecurity(securityOptions)(request, NextResponse, () => {});
-  if (middlewareResult instanceof Response) {
-    return middlewareResult;
-  }
-
   try {
     const body = await request.json();
-    const { email, password, rememberMe = false } = body;
+    const { phoneNumber, phone, last4, pin, rememberMe = false } = body;
+
+    // Support multiple input formats:
+    // 1. phoneNumber + pin (full phone)
+    // 2. phone + pin (full phone, alternative field name)
+    // 3. last4 + pin (last 4 digits)
+    const phoneInput = phoneNumber || phone || last4;
 
     // Validate required fields
-    if (!email || !password) {
-      throw new ValidationError('Email and password are required');
+    if (!phoneInput || !pin) {
+      throw new ValidationError('Phone number (or last 4 digits) and PIN are required');
     }
 
     // Get client information for session
@@ -44,17 +35,23 @@ export async function POST(request) {
                      request.ip || 
                      'unknown';
 
-    // Authenticate user
-    const authResult = await AuthService.login(email, password);
+    // Authenticate user using phone/PIN
+    const authResult = await AuthService.login(phoneInput, pin);
     
     if (!authResult.success) {
+      // Log failed login attempt to audit logs
+      await DatabaseSessionService.logAuditEvent(null, 'login_failed', 'auth', {
+        phone: phoneInput,
+        reason: authResult.message || 'Invalid credentials'
+      }, ipAddress, userAgent, false);
+      
       throw new AuthenticationError(authResult.message || 'Invalid credentials');
     }
 
     const { user, accessToken, refreshToken } = authResult;
 
-    // Create session
-    const session = SessionService.createSession(user.id, {
+    // Create session in database
+    const session = await DatabaseSessionService.createSession(user.id, {
       ipAddress,
       userAgent,
       deviceInfo: {
@@ -62,27 +59,30 @@ export async function POST(request) {
         ipAddress,
         loginTime: new Date()
       },
-      rememberMe
+      rememberMe,
+      accessToken,
+      refreshToken
     });
 
-    // Store refresh token in session service
-    const refreshTokenExpiry = new Date(Date.now() + (rememberMe ? 30 : 7) * 24 * 60 * 60 * 1000);
-    SessionService.storeRefreshToken(refreshToken, session.sessionId, refreshTokenExpiry);
+    // Log successful login to audit logs
+    await DatabaseSessionService.logAuditEvent(user.id, 'login_success', 'auth', {
+      phone: phoneInput,
+      session_id: session.sessionId
+    }, ipAddress, userAgent, true);
 
-    // Log successful login
     console.log(`[AUTH] Successful login for user ${user.id} from IP ${ipAddress}`);
 
-    // Return success response
-    return NextResponse.json({
+    // Return success response with security headers
+    const response = NextResponse.json({
       success: true,
       message: 'Login successful',
       data: {
         user: {
           id: user.id,
+          phone: phoneInput,
           email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
           isEmailVerified: user.isEmailVerified,
+          isPinSet: user.isPinSet,
           role: user.role
         },
         accessToken,
@@ -93,9 +93,15 @@ export async function POST(request) {
     }, { 
       status: 200,
       headers: {
-        'Set-Cookie': `sessionId=${session.sessionId}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${rememberMe ? 2592000 : 604800}` // 30 days or 7 days
+        'Set-Cookie': `sessionId=${session.sessionId}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${rememberMe ? 2592000 : 604800}`, // 30 days or 7 days
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'X-XSS-Protection': '1; mode=block',
+        'Referrer-Policy': 'strict-origin-when-cross-origin'
       }
     });
+
+    return response;
 
   } catch (error) {
     // Log failed login attempt

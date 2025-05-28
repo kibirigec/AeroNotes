@@ -4,130 +4,121 @@
  */
 
 import { NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import SessionService from '../../../../../lib/services/auth/SessionService.js';
-import { 
-  ValidationError,
-  AuthenticationError,
-  sendErrorResponse 
-} from '../../../../../lib/core/errors/index.js';
-import { applySecurity } from '../../middleware/security.js';
-
-// Apply security middleware
-const securityOptions = {
-  rateLimit: {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20, // 20 logout attempts per window
-  }
-};
+import DatabaseSessionService from '../../../../../lib/services/auth/DatabaseSessionService.js';
+import { verifyJWT, extractTokenFromRequest } from '../../../../../lib/core/utils/jwt.js';
+import { sendErrorResponse } from '../../../../../lib/core/errors/index.js';
 
 export async function POST(request) {
-  // Apply security middleware
-  const middlewareResult = await applySecurity(securityOptions)(request, NextResponse, () => {});
-  if (middlewareResult instanceof Response) {
-    return middlewareResult;
-  }
-
   try {
-    // Extract token from Authorization header
-    const authHeader = request.headers.get('authorization');
-    let token = null;
-    let sessionId = null;
-    let userId = null;
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7);
-    }
-
-    // Also check for session ID in cookies or body
-    const cookies = request.headers.get('cookie');
-    if (cookies) {
-      const sessionCookie = cookies.split(';').find(c => c.trim().startsWith('sessionId='));
-      if (sessionCookie) {
-        sessionId = sessionCookie.split('=')[1];
-      }
-    }
-
-    // Try to get session ID from request body as fallback
-    try {
-      const body = await request.json();
-      if (body.sessionId) {
-        sessionId = body.sessionId;
-      }
-      if (body.refreshToken) {
-        // Revoke refresh token if provided
-        SessionService.revokeRefreshToken(body.refreshToken);
-      }
-    } catch (e) {
-      // Body parsing failed, continue with other methods
-    }
-
-    // If we have a token, verify it and extract user info
-    if (token) {
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        userId = decoded.userId;
-        
-        // Blacklist the access token
-        if (decoded.jti) {
-          const expiresAt = decoded.exp * 1000; // Convert to milliseconds
-          SessionService.blacklistToken(decoded.jti, expiresAt);
-        }
-      } catch (jwtError) {
-        // Token is invalid, but we can still proceed with logout
-        console.log('[AUTH] Invalid token during logout, proceeding anyway');
-      }
-    }
-
-    // If we have a session ID, invalidate the session
-    if (sessionId) {
-      const session = SessionService.getSession(sessionId);
-      if (session) {
-        userId = session.userId;
-        SessionService.invalidateSession(sessionId);
-      }
-    }
-
-    // Log logout event
+    const userAgent = request.headers.get('user-agent') || '';
     const ipAddress = request.headers.get('x-forwarded-for') || 
                      request.headers.get('x-real-ip') || 
+                     request.ip || 
                      'unknown';
-    
-    if (userId) {
-      console.log(`[AUTH] User ${userId} logged out from IP ${ipAddress}`);
-    } else {
-      console.log(`[AUTH] Logout attempt from IP ${ipAddress} (no valid session)`);
+
+    let userId = null;
+    let sessionId = null;
+    let accessToken = null;
+    let refreshToken = null;
+
+    try {
+      // Try to extract and verify access token
+      accessToken = extractTokenFromRequest(request);
+      
+      if (accessToken) {
+        const decoded = verifyJWT(accessToken);
+        userId = decoded.sub;
+        sessionId = decoded.sessionId;
+      }
+    } catch (tokenError) {
+      // If access token verification fails, try to get from legacy header
+      const legacyUserId = request.headers.get('x-user-id');
+      if (legacyUserId) {
+        userId = legacyUserId;
+      }
     }
 
-    // Return success response regardless of whether we found valid tokens/sessions
-    // This prevents information leakage about valid sessions
+    // Try to get refresh token from request body
+    try {
+      const body = await request.json();
+      refreshToken = body.refreshToken;
+    } catch (bodyError) {
+      // No body or invalid JSON, continue without refresh token
+    }
+
+    // If we have a user ID, log the logout attempt
+    if (userId) {
+      await DatabaseSessionService.logAuditEvent(userId, 'logout_attempt', 'auth', {
+        session_id: sessionId,
+        has_access_token: !!accessToken,
+        has_refresh_token: !!refreshToken
+      }, ipAddress, userAgent, true);
+    }
+
+    // Blacklist the access token if present
+    if (accessToken) {
+      try {
+        const decoded = verifyJWT(accessToken);
+        const expiresAt = new Date(decoded.exp * 1000);
+        await DatabaseSessionService.blacklistToken(accessToken, 'access', expiresAt);
+        console.log(`[AUTH] Blacklisted access token for user ${userId}`);
+      } catch (error) {
+        console.error('[AUTH] Error blacklisting access token:', error);
+      }
+    }
+
+    // Blacklist the refresh token if present
+    if (refreshToken) {
+      try {
+        const decoded = verifyJWT(refreshToken, process.env.JWT_REFRESH_SECRET);
+        const expiresAt = new Date(decoded.exp * 1000);
+        await DatabaseSessionService.blacklistToken(refreshToken, 'refresh', expiresAt);
+        console.log(`[AUTH] Blacklisted refresh token for user ${userId}`);
+      } catch (error) {
+        console.error('[AUTH] Error blacklisting refresh token:', error);
+      }
+    }
+
+    // Invalidate the session if we have a session ID
+    if (sessionId) {
+      await DatabaseSessionService.invalidateSession(sessionId);
+      console.log(`[AUTH] Invalidated session ${sessionId}`);
+    }
+
+    // Log successful logout
+    if (userId) {
+      await DatabaseSessionService.logAuditEvent(userId, 'logout_success', 'auth', {
+        session_id: sessionId,
+        tokens_blacklisted: {
+          access_token: !!accessToken,
+          refresh_token: !!refreshToken
+        }
+      }, ipAddress, userAgent, true);
+      
+      console.log(`[AUTH] User ${userId} logged out successfully from IP ${ipAddress}`);
+    }
+
+    // Always return success, even if there were errors
+    // This prevents information leakage about session states
     return NextResponse.json({
       success: true,
-      message: 'Logout successful'
+      message: 'Logged out successfully'
     }, { 
       status: 200,
       headers: {
-        // Clear session cookie
+        // Clear the session cookie
         'Set-Cookie': 'sessionId=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0'
       }
     });
 
   } catch (error) {
-    // Log error but still return success to prevent information leakage
-    const ipAddress = request.headers.get('x-forwarded-for') || 
-                     request.headers.get('x-real-ip') || 
-                     'unknown';
-    console.error(`[AUTH] Logout error from IP ${ipAddress}:`, error.message);
+    console.error('[AUTH] Error during logout:', error);
     
-    // Return success even on error to prevent information disclosure
+    // Always return success for logout, even on errors
+    // This prevents information leakage about internal errors
     return NextResponse.json({
       success: true,
-      message: 'Logout successful'
-    }, { 
-      status: 200,
-      headers: {
-        'Set-Cookie': 'sessionId=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0'
-      }
-    });
+      message: 'Logged out successfully'
+    }, { status: 200 });
   }
 } 
