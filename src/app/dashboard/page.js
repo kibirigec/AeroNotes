@@ -42,7 +42,8 @@ export default function Dashboard() {
     saveNoteHandler, 
     toggleNoteAutoDeleteHandler, 
     reloadNotes, 
-    deleteNoteHandler
+    deleteNoteHandler,
+    setStoredTexts
   } = useNotes(!!user);
 
   const {
@@ -52,6 +53,7 @@ export default function Dashboard() {
     deleteDocumentHandler,
     toggleDocAutoDeleteHandler,
     reloadDocuments,
+    setDocuments
   } = useDocuments(!!user);
 
   const {
@@ -61,6 +63,7 @@ export default function Dashboard() {
     deleteImageHandler,
     toggleImageAutoDeleteHandler: toggleGalleryImageAutoDeleteHandler,
     reloadGalleryImages,
+    setGalleryImages
   } = useGalleryImages(!!user);
 
   const initialFetchDone = useRef(false);
@@ -105,26 +108,42 @@ export default function Dashboard() {
     // Update badge for appropriate section
     if (newFile.bucket_id === 'images') {
       setBadgeWithTimer("gallery");
-      reloadGalleryImages();
+      // Add the new image to existing state instead of reloading
+      setGalleryImages(prevImages => {
+        // Check if image already exists to prevent duplicates
+        if (prevImages.some(img => img.id === newFile.id)) {
+          return prevImages;
+        }
+        return [newFile, ...prevImages].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      });
     } else if (newFile.bucket_id === 'aeronotes-documents') {
       setBadgeWithTimer("documents");
-      reloadDocuments();
+      // Add the new document to existing state instead of reloading
+      setDocuments(prevDocs => {
+        // Check if document already exists to prevent duplicates
+        if (prevDocs.some(doc => doc.id === newFile.id)) {
+          return prevDocs;
+        }
+        return [newFile, ...prevDocs];
+      });
     }
-  }, [setBadgeWithTimer, reloadGalleryImages, reloadDocuments]);
+  }, [setBadgeWithTimer]);
 
   const handleFileUpdated = useCallback((updatedFile, oldFile) => {
-    // Refresh appropriate data (no badge for updates)
+    // Update specific item in state instead of reloading
     if (updatedFile.bucket_id === 'images') {
-      reloadGalleryImages();
+      setGalleryImages(prevImages => 
+        prevImages.map(img => img.id === updatedFile.id ? updatedFile : img)
+      );
     } else if (updatedFile.bucket_id === 'aeronotes-documents') {
-      reloadDocuments();
+      setDocuments(prevDocs => 
+        prevDocs.map(doc => doc.id === updatedFile.id ? updatedFile : doc)
+      );
     }
-  }, [reloadGalleryImages, reloadDocuments]);
+  }, []);
 
   const handleFileDeleted = useCallback((deletedFile) => {
-    // For deletions, we need to force a reload to ensure sync across devices
-    // This is important because optimistic updates may have already removed 
-    // the item locally, but we need to sync deletions from other devices
+    // Remove specific item from state instead of reloading
     console.log('🗑️ Dashboard: File deleted via realtime:', deletedFile.name);
     console.log('🗑️ Dashboard: File details:', {
       id: deletedFile.id,
@@ -133,42 +152,54 @@ export default function Dashboard() {
     });
     
     if (deletedFile.bucket_id === 'images') {
-      console.log('🖼️ Dashboard: Reloading gallery images...');
-      // Immediately reload gallery images to sync deletions from other devices
-      reloadGalleryImages();
+      console.log('🖼️ Dashboard: Removing image from state...');
+      setGalleryImages(prevImages => 
+        prevImages.filter(img => img.id !== deletedFile.id)
+      );
     } else if (deletedFile.bucket_id === 'aeronotes-documents') {
-      console.log('📄 Dashboard: Reloading documents...');
-      // Immediately reload documents to sync deletions from other devices  
-      reloadDocuments();
+      console.log('📄 Dashboard: Removing document from state...');
+      setDocuments(prevDocs => 
+        prevDocs.filter(doc => doc.id !== deletedFile.id)
+      );
     }
-  }, [reloadGalleryImages, reloadDocuments]);
+  }, []);
 
   // Notes sync callbacks
   const handleNoteAdded = useCallback((newNote) => {
     console.log('📝 Dashboard: Note added via realtime:', newNote.title?.substring(0, 30));
     // Update badge for notes section
     setBadgeWithTimer("notes");
-    reloadNotes();
-  }, [setBadgeWithTimer, reloadNotes]);
+    // Add the new note to existing state instead of reloading
+    setStoredTexts(prevNotes => {
+      // Check if note already exists to prevent duplicates
+      if (prevNotes.some(note => note.id === newNote.id)) {
+        return prevNotes;
+      }
+      return [newNote, ...prevNotes].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    });
+  }, [setBadgeWithTimer]);
 
   const handleNoteUpdated = useCallback((updatedNote, oldNote) => {
-    // Refresh notes data (no badge for updates)
+    // Update specific note in state instead of reloading
     console.log('📝 Dashboard: Note updated via realtime:', updatedNote.title?.substring(0, 30));
-    reloadNotes();
-  }, [reloadNotes]);
+    setStoredTexts(prevNotes => 
+      prevNotes.map(note => note.id === updatedNote.id ? updatedNote : note)
+    );
+  }, []);
 
   const handleNoteDeleted = useCallback((deletedNote) => {
-    // For note deletions, force a reload to ensure sync across devices
+    // Remove specific note from state instead of reloading
     console.log('🗑️ Dashboard: Note deleted via realtime:', deletedNote.title?.substring(0, 30));
     console.log('🗑️ Dashboard: Note details:', {
       id: deletedNote.id,
       user_id: deletedNote.user_id
     });
-    console.log('📝 Dashboard: Reloading notes...');
+    console.log('📝 Dashboard: Removing note from state...');
     
-    // Immediately reload notes to sync deletions from other devices
-    reloadNotes();
-  }, [reloadNotes]);
+    setStoredTexts(prevNotes => 
+      prevNotes.filter(note => note.id !== deletedNote.id)
+    );
+  }, []);
 
   // Initialize realtime sync
   const { isConnected, activeSessionCount } = useRealtimeSync({

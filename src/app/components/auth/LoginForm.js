@@ -101,6 +101,15 @@ export default function LoginForm({ onStepChange }) {
     }
   };
 
+  const handleFocus = (event) => {
+    // Override autocomplete attribute when focused
+    if (event.target.autocomplete) {
+      event.target.autocomplete = "nope-" + Math.random();
+    }
+    // Also set the attribute directly
+    event.target.setAttribute('autocomplete', 'nope-' + Math.random());
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isPinComplete || !isPhoneSuffixComplete) return;
@@ -236,13 +245,24 @@ export default function LoginForm({ onStepChange }) {
                 <input
                   key={`pin-${index}`}
                   ref={el => pinRefs.current[index] = el}
-                  type="password"
+                  // type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={digit}
                   onChange={(e) => handlePinChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(e, 'pin', index)}
+                  onFocus={(e) => handleFocus(e)}
                   className="w-14 h-14 text-center text-xl font-semibold border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none focus:ring-3 focus:ring-blue-200 dark:border-blue-600 dark:bg-gray-800 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-800 transition-all"
                   maxLength={1}
                   autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  data-form-type="other"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  role="textbox"
+                  aria-label={`PIN digit ${index + 1}`}
                 />
               ))}
             </div>
@@ -265,12 +285,23 @@ export default function LoginForm({ onStepChange }) {
                       key={`phone-${index}`}
                       ref={el => phoneSuffixRefs.current[index] = el}
                       type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={digit}
                       onChange={(e) => handlePhoneSuffixChange(index, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, 'phone', index)}
+                      onFocus={(e) => handleFocus(e)}
                       className="w-14 h-14 text-center text-xl font-semibold border-2 border-blue-300 rounded-xl focus:border-blue-500 focus:outline-none focus:ring-3 focus:ring-blue-200 dark:border-blue-600 dark:bg-gray-800 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-800 transition-all"
                       maxLength={1}
-                      autoComplete="off"
+                      autoComplete="new-password"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck="false"
+                      data-form-type="other"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      role="textbox"
+                      aria-label={`Phone digit ${index + 1}`}
                     />
                   ))}
                 </div>

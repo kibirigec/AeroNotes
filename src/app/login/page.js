@@ -35,8 +35,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-gray-900 p-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-gray-900 p-4 md:min-h-screen md:flex md:flex-col md:items-center md:justify-center md:p-4 auth-page-mobile">
+      <div className="w-full max-w-md space-y-8 auth-container-mobile md:space-y-8">
         <div className="text-center">
           <div className="flex items-center justify-center mb-6">
             <span className="inline-block w-12 h-12 rounded-full bg-gradient-to-tr from-blue-400 to-blue-600 dark:from-blue-700 dark:to-blue-400 mr-3" />

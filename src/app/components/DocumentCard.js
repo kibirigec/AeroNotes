@@ -64,6 +64,16 @@ const DocumentCard = ({
   const canPreviewInModal = isPdf || isOfficeDoc;
 
   const handleOpenClick = () => {
+    console.log('Opening document:', {
+      file_name: doc.file_name,
+      content_type: doc.content_type,
+      content: doc.content,
+      canPreviewInModal,
+      isPdf,
+      isOfficeDoc,
+      fileExtension
+    });
+    
     if (canPreviewInModal) {
       setIsPreviewModalOpen(true);
     } else if (doc.content) {
@@ -81,8 +91,40 @@ const DocumentCard = ({
   if (isPdf) {
     previewUrl = doc.content;
   } else if (isOfficeDoc) {
-    previewUrl = `https://docs.google.com/gview?url=${encodeURIComponent(doc.content)}&embedded=true`;
+    // Use alternative viewers for better compatibility
+    const encodedUrl = encodeURIComponent(doc.content);
+    // Try Microsoft's online viewer first, then Google as fallback
+    previewUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
   }
+
+  // Add a fallback function for when the primary viewer fails
+  const handleIframeError = () => {
+    console.warn('Primary viewer failed for document:', doc.file_name);
+    if (isOfficeDoc) {
+      // Fallback to Google viewer
+      const encodedUrl = encodeURIComponent(doc.content);
+      const iframe = document.querySelector(`iframe[title="${doc.file_name || 'Document Preview'}"]`);
+      if (iframe) {
+        console.log('Switching to Google viewer fallback');
+        iframe.src = `https://docs.google.com/gview?url=${encodedUrl}&embedded=true`;
+      }
+    }
+  };
+
+  // Handle iframe load to detect issues
+  const handleIframeLoad = (event) => {
+    console.log('Iframe loaded successfully for:', doc.file_name);
+    // Check if the iframe content is actually loaded
+    try {
+      const iframe = event.target;
+      if (iframe && iframe.contentWindow) {
+        // If we can access the content window, it's likely loaded
+        console.log('Preview loaded successfully');
+      }
+    } catch (error) {
+      console.log('Cross-origin iframe, but this is expected for external viewers');
+    }
+  };
 
   const handleToggleAutoDelete = async () => {
     if (isInteracting) return;
@@ -249,7 +291,7 @@ const DocumentCard = ({
         <div className="flex justify-end mt-3 space-x-2">
           <button 
             onClick={handleDownload}
-            className="flex-shrink-0 text-blue-600 hover:text-blue-500 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-800/40 rounded-full p-2 transition-colors"
+            className="flex-shrink-0 text-blue-600 hover:text-blue-500 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-800/40 rounded-md p-2 transition-colors"
             aria-label="Download document"
             title="Download document"
           >
@@ -259,7 +301,7 @@ const DocumentCard = ({
           </button>
           <button 
             onClick={handleDelete}
-            className="flex-shrink-0 text-red-600 hover:text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-800/40 rounded-full p-2 transition-colors"
+            className="flex-shrink-0 text-red-800 dark:text-red-200 hover:text-red-900 dark:hover:text-red-100 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-800/40 border border-red-300 dark:border-red-800 hover:border-red-400 dark:hover:border-red-600 rounded-md p-2 transition-colors"
             aria-label="Delete document"
             title="Delete document"
           >
@@ -295,6 +337,8 @@ const DocumentCard = ({
               height="100%" 
               title={doc.file_name || 'Document Preview'}
               className="flex-grow border-none"
+              onError={handleIframeError}
+              onLoad={handleIframeLoad}
             >
               Your browser does not support iframes or the content cannot be displayed. You can try to <a href={doc.content} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">download the document here</a>.
             </iframe>

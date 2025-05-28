@@ -51,6 +51,15 @@ export default function SignUpForm() {
     }
   };
 
+  const handleFocus = (event) => {
+    // Override autocomplete attribute when focused
+    if (event.target.autocomplete) {
+      event.target.autocomplete = "nope-" + Math.random();
+    }
+    // Also set the attribute directly
+    event.target.setAttribute('autocomplete', 'nope-' + Math.random());
+  };
+
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -175,10 +184,18 @@ export default function SignUpForm() {
             <input
               id="phoneNumber"
               type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={phoneNumber}
               onChange={handlePhoneNumberChange}
+              onFocus={handleFocus}
               placeholder="0772345678"
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-500 dark:text-white dark:focus:ring-blue-400 dark:focus:border-blue-400"
+              autoComplete="new-password"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+              data-form-type="other"
               required
             />
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -223,11 +240,19 @@ export default function SignUpForm() {
               <input
                 id="otp"
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
+                onFocus={handleFocus}
                 placeholder="123456"
                 maxLength="6"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-500 dark:text-white dark:focus:ring-blue-400 dark:focus:border-blue-400 text-center text-lg tracking-widest"
+                autoComplete="new-password"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
+                data-form-type="other"
                 required
               />
             </div>
@@ -239,6 +264,7 @@ export default function SignUpForm() {
               <input
                 id="pin"
                 type="password"
+                inputMode="numeric"
                 value={pin}
                 onChange={(e) => {
                   const numericValue = e.target.value.replace(/[^0-9]/g, ''); // Allow only digits
@@ -247,12 +273,22 @@ export default function SignUpForm() {
                     setPin(numericValue);
                   }
                 }}
+                onFocus={handleFocus}
                 minLength="4"
                 maxLength="4"
                 pattern="^\d{4}$"
                 title="PIN must be exactly 4 digits"
                 placeholder="Enter your 4-digit PIN"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-500 dark:text-white dark:focus:ring-blue-400 dark:focus:border-blue-400"
+                autoComplete="new-password"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
+                data-form-type="other"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                role="textbox"
+                aria-label="Create 4-digit PIN"
                 required
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">

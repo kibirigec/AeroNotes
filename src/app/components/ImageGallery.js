@@ -116,16 +116,31 @@ const ImageItem = ({ image, onDelete, onToggleAutoDelete }) => {
             <div className="flex items-center space-x-2">
               {/* Download button */}
               <button
-                onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = image.url;
-                  link.download = image.file_name || 'image';
-                  link.target = '_blank';
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
+                onClick={async () => {
+                  try {
+                    // Use fetch to download the image as blob for better cross-browser support
+                    const response = await fetch(image.url);
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = image.file_name || `image_${Date.now()}`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                  } catch (error) {
+                    console.error('Error downloading image:', error);
+                    // Fallback to direct link if fetch fails
+                    const link = document.createElement('a');
+                    link.href = image.url;
+                    link.download = image.file_name || `image_${Date.now()}`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }
                 }}
-                className="flex-shrink-0 text-blue-300 hover:text-blue-200 bg-black/50 backdrop-blur-sm rounded-full p-1.5 transition-colors"
+                className="flex-shrink-0 text-blue-300 hover:text-blue-200 bg-black/50 backdrop-blur-sm rounded-md p-1.5 transition-colors"
                 aria-label="Download image"
                 title="Download image"
               >
@@ -137,7 +152,7 @@ const ImageItem = ({ image, onDelete, onToggleAutoDelete }) => {
               {/* Delete button */}
               <button 
                 onClick={handleDelete}
-                className="flex-shrink-0 text-red-400 hover:text-red-300 bg-black/50 backdrop-blur-sm rounded-full p-1.5 transition-colors"
+                className="flex-shrink-0 text-red-400 hover:text-red-300 bg-black/50 backdrop-blur-sm rounded-md p-1.5 transition-colors"
                 aria-label="Delete image"
                 title="Delete image"
               >

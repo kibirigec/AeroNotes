@@ -30,11 +30,12 @@
 }
 
 html {
+  height: 100%;
+  overflow-x: hidden;
+  position: fixed;
+  width: 100%;
   transition: color var(--transition-speed) var(--transition-timing), 
               background-color var(--transition-speed) var(--transition-timing);
-  overflow-x: hidden;
-  max-width: 100vw;
-  width: 100%;
 }
 
 *, *::before, *::after {
@@ -45,21 +46,30 @@ html {
 #__next, 
 body > div,
 main {
-  max-width: 100vw;
+  max-width: 100%;
   overflow-x: hidden;
 }
 
 body {
+  height: 100%;
   background: linear-gradient(120deg, #e6f0ff 0%, #b3d1ff 100%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: 120% 120%;
+  background-position: center;
   color: var(--foreground);
   font-family: 'Inter', Arial, Helvetica, sans-serif;
   min-height: 100vh;
-  position: relative;
-  overflow-x: hidden;
-  width: 100vw;
-  max-width: 100vw;
+  min-height: 100dvh;
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   transition: background var(--transition-speed) var(--transition-timing), 
               color var(--transition-speed) var(--transition-timing);
 }
@@ -67,7 +77,49 @@ body {
 @media (prefers-color-scheme: dark) {
   body {
     background: linear-gradient(120deg, #0a2540 0%, #1e3a8a 100%);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-size: 120% 120%;
+    background-position: center;
     color: var(--foreground);
+  }
+}
+
+/* Mobile specific fixes */
+@media (max-width: 768px) {
+  html {
+    position: relative;
+  }
+  
+  body {
+    position: relative;
+    background-attachment: scroll;
+    background-size: 100% 120%;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+  }
+  
+  /* Auth pages - no scroll on mobile */
+  .auth-page-mobile {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden !important;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    left: 0;
+  }
+  
+  .auth-container-mobile {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
   }
 }
 
@@ -79,22 +131,22 @@ body::before, body::after {
   border-radius: 50%;
   filter: blur(32px);
   opacity: 0.5;
-  overflow: hidden;
+  aspect-ratio: 1 / 1;
   transition: background var(--transition-speed) var(--transition-timing),
               opacity var(--transition-speed) var(--transition-timing);
 }
 
 body::before {
-  width: min(400px, 80vw);
-  height: min(300px, 60vw);
+  width: min(400px, 50vmin);
+  height: min(400px, 50vmin);
   top: -100px;
   left: -120px;
   background: var(--primary-blue-light);
 }
 
 body::after {
-  width: min(300px, 60vw);
-  height: min(200px, 40vw);
+  width: min(300px, 40vmin);
+  height: min(300px, 40vmin);
   bottom: -80px;
   right: -100px;
   background: var(--shape-blue);
