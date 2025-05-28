@@ -28,6 +28,7 @@ export default function Dashboard() {
     gallery: false,
     documents: false
   });
+  const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 
   // Refs to track badge auto-clear timers
   const badgeTimers = useRef({
@@ -411,9 +412,40 @@ export default function Dashboard() {
           {/* Connection Status - now permanently visible */}
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${getSyncStatus().color} ${getSyncStatus().glow}`}></div>
-            <span className={`text-xs ${getSyncStatus().textColor}`}>
-              {getSyncStatus().text}
-            </span>
+            <div className="flex items-center">
+              <span className={`text-xs ${getSyncStatus().textColor}`}>
+                {getSyncStatus().text}
+              </span>
+              {/* Info icon with tooltip */}
+              <div className="relative">
+                <button
+                  onMouseEnter={() => setShowInfoTooltip(true)}
+                  onMouseLeave={() => setShowInfoTooltip(false)}
+                  onClick={() => setShowInfoTooltip(!showInfoTooltip)}
+                  className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-1"
+                  aria-label="LiveSync information"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
+                  </svg>
+                </button>
+                
+                {/* Tooltip */}
+                {showInfoTooltip && (
+                  <div className="absolute left-0 top-6 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-3 z-50 text-xs">
+                    <div className="font-semibold text-gray-900 dark:text-gray-100 mb-2">LiveSync Status</div>
+                    <div className="space-y-2 text-gray-700 dark:text-gray-300">
+                      <div><span className="font-medium text-green-600 dark:text-green-400">Active:</span> Multiple devices/tabs open - real-time sync enabled</div>
+                      <div><span className="font-medium text-amber-600 dark:text-amber-400">Dormant:</span> Single session - sync ready but inactive</div>
+                      <div><span className="font-medium text-red-600 dark:text-red-400">Connection lost:</span> Offline or sync unavailable</div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                      LiveSync automatically syncs notes, images, and documents across all your devices in real-time.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
         

@@ -289,4 +289,3 @@ export const hasRole = (user, roles) => {
   
   return Array.isArray(roles) ? roles.includes(user.role) : user.role === roles;
 }; 
-}; 

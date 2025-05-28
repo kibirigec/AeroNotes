@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
+import { useAuth } from '../../../lib/AuthProvider';
 
 const DocumentCard = ({ 
   doc, 
@@ -8,6 +9,7 @@ const DocumentCard = ({
   formatLastEdited, 
   getDocRemainingTime
 }) => {
+  const { session } = useAuth();
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
   const [showTimeoutOptions, setShowTimeoutOptions] = useState(false);
@@ -181,17 +183,84 @@ const DocumentCard = ({
 
   const handleDownload = async () => {
     try {
-      // Create a temporary link element to trigger the download
+      console.log('Download attempt for document:', {
+        id: doc.id,
+        file_name: doc.file_name,
+        content: doc.content,
+        bucket_id: doc.bucket_id,
+        file_path: doc.file_path
+      });
+
+      // Check authentication
+      if (!session?.access_token) {
+        alert('Please log in to download files');
+        return;
+      }
+
+      // For mobile browsers, use a direct approach
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // Create a form and submit it to trigger download on mobile
+        const form = document.createElement('form');
+        form.method = 'GET';
+        form.action = `/api/documents/${doc.id}/download`;
+        form.style.display = 'none';
+        
+        // Add authorization as a hidden input (we'll handle this on the server)
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token';
+        tokenInput.value = session.access_token;
+        form.appendChild(tokenInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+        
+        console.log('Mobile download initiated');
+        return;
+      }
+
+      // Desktop approach with blob
+      console.log('Starting API download...');
+      const response = await fetch(`/api/documents/${doc.id}/download`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API download failed:', errorData);
+        throw new Error(errorData.error || 'Download failed');
+      }
+      
+      // Get the file blob
+      const blob = await response.blob();
+      
+      // Create a download link that forces download
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = doc.content; // doc.content should contain the public URL
+      link.href = url;
       link.download = doc.file_name || 'document';
-      link.target = '_blank';
+      link.style.display = 'none';
+      
+      // Force download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up the object URL
+      window.URL.revokeObjectURL(url);
+      console.log('Download successful');
+      
     } catch (error) {
       console.error('Error downloading document:', error);
-      alert('Failed to download document. Please try again.');
+      alert(`Failed to download document: ${error.message}`);
     }
   };
 
