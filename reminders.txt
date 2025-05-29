@@ -2,6 +2,9 @@ add reminders
 glowing
 glassmorphism
 redis + supabase
+obscure code from devtools
+Smaller UI fixes especially on the preferences page
+
 
 Security:
 Rate Limiting: Implement rate limiting on the API routes, especially login-with-pin, to prevent brute-force attacks.
