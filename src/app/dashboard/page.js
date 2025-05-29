@@ -11,6 +11,7 @@ import NotesView from "../components/NotesView";
 import GalleryView from "../components/GalleryView";
 import DocumentsView from "../components/DocumentsView";
 import { PageLoadingSkeleton, ContentSkeleton } from "../components/Skeletons";
+import AutoSignoutTimer from "../components/AutoSignoutTimer";
 import { useNotes } from "../../../lib/hooks/useNotes";
 import { useDocuments } from "../../../lib/hooks/useDocuments";
 import { useGalleryImages } from "../../../lib/hooks/useGalleryImages";
@@ -19,7 +20,7 @@ import { useAuth } from "../../../lib/AuthProvider";
 import supabase from "../../../lib/supabase";
 
 export default function Dashboard() {
-  const { user, signOut, isLoading: isAuthLoading } = useAuth();
+  const { user, signOut, isLoading: isAuthLoading, autoSignout } = useAuth();
   const router = useRouter();
   const [activeSection, setActiveSection] = useState("notes");
   const [realtimeNotifications, setRealtimeNotifications] = useState([]);
@@ -449,12 +450,32 @@ export default function Dashboard() {
           </div>
         </div>
         
-        <button 
-          onClick={signOut} 
-          className="px-4 py-2 rounded-xl font-semibold text-sm shadow transition border bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/30 hover:border-red-300 dark:hover:border-red-700"
-        >
-          Sign Out
-        </button>
+        {/* Center section with Auto Signout Timer */}
+        <div className="flex items-center justify-center">
+          <AutoSignoutTimer
+            enabled={autoSignout?.settings?.enabled}
+            timeoutMinutes={autoSignout?.timeoutMinutes}
+            isActivelyTyping={autoSignout?.isActivelyTyping}
+            lastActivity={autoSignout?.lastActivity}
+            isMobile={autoSignout?.isMobile}
+            onActivity={autoSignout?.detectActivity}
+          />
+        </div>
+        
+        <div className="flex items-center space-x-3">
+          <button 
+            onClick={() => router.push('/preferences')} 
+            className="px-4 py-2 rounded-xl font-semibold text-sm shadow transition border bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
+          >
+            ⚙️ Preferences
+          </button>
+          <button 
+            onClick={signOut} 
+            className="px-4 py-2 rounded-xl font-semibold text-sm shadow transition border bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/30 hover:border-red-300 dark:hover:border-red-700"
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
       <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex flex-col relative z-10">
         <div className="w-full max-w-6xl mx-auto">
