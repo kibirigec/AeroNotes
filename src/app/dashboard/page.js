@@ -407,75 +407,155 @@ export default function Dashboard() {
     <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-gray-900 overflow-x-hidden w-full">
       <PageHeader />
       
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center py-2">
-        {/* Realtime Connection Status */}
-        <div className="flex items-center space-x-4">
-          {/* Connection Status - now permanently visible */}
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${getSyncStatus().color} ${getSyncStatus().glow}`}></div>
-            <div className="flex items-center">
+      {/* Mobile-friendly header layout */}
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Mobile layout (stacked) */}
+        <div className="block lg:hidden">
+          {/* Top row: LiveSync status and buttons */}
+          <div className="flex justify-between items-center py-2">
+            {/* LiveSync Status - compact */}
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${getSyncStatus().color} ${getSyncStatus().glow}`}></div>
               <span className={`text-xs ${getSyncStatus().textColor}`}>
                 {getSyncStatus().text}
               </span>
-              {/* Info icon with tooltip */}
-              <div className="relative">
-                <button
-                  onMouseEnter={() => setShowInfoTooltip(true)}
-                  onMouseLeave={() => setShowInfoTooltip(false)}
-                  onClick={() => setShowInfoTooltip(!showInfoTooltip)}
-                  className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-1"
-                  aria-label="LiveSync information"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
-                  </svg>
-                </button>
-                
-                {/* Tooltip */}
-                {showInfoTooltip && (
-                  <div className="absolute left-0 top-6 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-3 z-50 text-xs">
-                    <div className="font-semibold text-gray-900 dark:text-gray-100 mb-2">LiveSync Status</div>
-                    <div className="space-y-2 text-gray-700 dark:text-gray-300">
-                      <div><span className="font-medium text-green-600 dark:text-green-400">Active:</span> Multiple devices/tabs open - real-time sync enabled</div>
-                      <div><span className="font-medium text-amber-600 dark:text-amber-400">Dormant:</span> Single session - sync ready but inactive</div>
-                      <div><span className="font-medium text-red-600 dark:text-red-400">Connection lost:</span> Offline or sync unavailable</div>
+              {/* Simplified info icon for mobile */}
+              <button
+                onClick={() => setShowInfoTooltip(!showInfoTooltip)}
+                className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                aria-label="LiveSync info"
+              >
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
+                </svg>
+              </button>
+            </div>
+            
+            {/* Compact buttons */}
+            <div className="flex items-center space-x-2">
+              <button 
+                onClick={() => router.push('/preferences')} 
+                className="p-2 rounded-lg font-medium text-xs shadow-sm transition border bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
+                title="Preferences"
+              >
+                ⚙️
+              </button>
+              <button 
+                onClick={signOut} 
+                className="p-2 rounded-lg font-medium text-xs shadow-sm transition border bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/30"
+                title="Sign Out"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+          
+          {/* Bottom row: Timer (centered) */}
+          {autoSignout?.settings?.enabled && (
+            <div className="flex items-center justify-center pb-2">
+              <AutoSignoutTimer
+                enabled={autoSignout?.settings?.enabled}
+                timeoutMinutes={autoSignout?.timeoutMinutes}
+                isActivelyTyping={autoSignout?.isActivelyTyping}
+                lastActivity={autoSignout?.lastActivity}
+                isMobile={autoSignout?.isMobile}
+                onActivity={autoSignout?.detectActivity}
+              />
+            </div>
+          )}
+        </div>
+        
+        {/* Desktop layout (horizontal) */}
+        <div className="hidden lg:flex justify-between items-center py-2">
+          {/* Realtime Connection Status */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${getSyncStatus().color} ${getSyncStatus().glow}`}></div>
+              <div className="flex items-center">
+                <span className={`text-xs ${getSyncStatus().textColor}`}>
+                  {getSyncStatus().text}
+                </span>
+                {/* Info icon with tooltip */}
+                <div className="relative">
+                  <button
+                    onMouseEnter={() => setShowInfoTooltip(true)}
+                    onMouseLeave={() => setShowInfoTooltip(false)}
+                    onClick={() => setShowInfoTooltip(!showInfoTooltip)}
+                    className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors ml-1"
+                    aria-label="LiveSync information"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
+                    </svg>
+                  </button>
+                  
+                  {/* Tooltip */}
+                  {showInfoTooltip && (
+                    <div className="absolute left-0 top-6 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-3 z-50 text-xs">
+                      <div className="font-semibold text-gray-900 dark:text-gray-100 mb-2">LiveSync Status</div>
+                      <div className="space-y-2 text-gray-700 dark:text-gray-300">
+                        <div><span className="font-medium text-green-600 dark:text-green-400">Active:</span> Multiple devices/tabs open - real-time sync enabled</div>
+                        <div><span className="font-medium text-amber-600 dark:text-amber-400">Dormant:</span> Single session - sync ready but inactive</div>
+                        <div><span className="font-medium text-red-600 dark:text-red-400">Connection lost:</span> Offline or sync unavailable</div>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                        LiveSync automatically syncs notes, images, and documents across all your devices in real-time.
+                      </div>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
-                      LiveSync automatically syncs notes, images, and documents across all your devices in real-time.
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
+          
+          {/* Center section with Auto Signout Timer */}
+          <div className="flex items-center justify-center">
+            <AutoSignoutTimer
+              enabled={autoSignout?.settings?.enabled}
+              timeoutMinutes={autoSignout?.timeoutMinutes}
+              isActivelyTyping={autoSignout?.isActivelyTyping}
+              lastActivity={autoSignout?.lastActivity}
+              isMobile={autoSignout?.isMobile}
+              onActivity={autoSignout?.detectActivity}
+            />
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => router.push('/preferences')} 
+              className="px-4 py-2 rounded-xl font-semibold text-sm shadow transition border bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
+            >
+              ⚙️ Preferences
+            </button>
+            <button 
+              onClick={signOut} 
+              className="px-4 py-2 rounded-xl font-semibold text-sm shadow transition border bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/30 hover:border-red-300 dark:hover:border-red-700"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
         
-        {/* Center section with Auto Signout Timer */}
-        <div className="flex items-center justify-center">
-          <AutoSignoutTimer
-            enabled={autoSignout?.settings?.enabled}
-            timeoutMinutes={autoSignout?.timeoutMinutes}
-            isActivelyTyping={autoSignout?.isActivelyTyping}
-            lastActivity={autoSignout?.lastActivity}
-            isMobile={autoSignout?.isMobile}
-            onActivity={autoSignout?.detectActivity}
-          />
-        </div>
-        
-        <div className="flex items-center space-x-3">
-          <button 
-            onClick={() => router.push('/preferences')} 
-            className="px-4 py-2 rounded-xl font-semibold text-sm shadow transition border bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
-          >
-            ⚙️ Preferences
-          </button>
-          <button 
-            onClick={signOut} 
-            className="px-4 py-2 rounded-xl font-semibold text-sm shadow transition border bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 hover:bg-red-100 dark:hover:bg-red-900/30 hover:border-red-300 dark:hover:border-red-700"
-          >
-            Sign Out
-          </button>
-        </div>
+        {/* Mobile info tooltip - positioned differently */}
+        {showInfoTooltip && (
+          <div className="block lg:hidden fixed inset-x-4 top-24 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-3 z-50 text-xs">
+            <div className="font-semibold text-gray-900 dark:text-gray-100 mb-2">LiveSync Status</div>
+            <div className="space-y-2 text-gray-700 dark:text-gray-300">
+              <div><span className="font-medium text-green-600 dark:text-green-400">Active:</span> Multiple devices/tabs open - real-time sync enabled</div>
+              <div><span className="font-medium text-amber-600 dark:text-amber-400">Dormant:</span> Single session - sync ready but inactive</div>
+              <div><span className="font-medium text-red-600 dark:text-red-400">Connection lost:</span> Offline or sync unavailable</div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+              LiveSync automatically syncs notes, images, and documents across all your devices in real-time.
+            </div>
+            <button 
+              onClick={() => setShowInfoTooltip(false)}
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+        )}
       </div>
       <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex flex-col relative z-10">
         <div className="w-full max-w-6xl mx-auto">

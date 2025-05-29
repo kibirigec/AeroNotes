@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../lib/AuthProvider';
 import { 
@@ -18,6 +18,16 @@ export default function PreferencesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+  const [isToastVisible, setIsToastVisible] = useState(false);
+
+  // Refs for uncontrolled components
+  const desktopSelectRef = useRef(null);
+  const mobileSelectRef = useRef(null);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   // Load user preferences
   useEffect(() => {
@@ -27,6 +37,19 @@ export default function PreferencesPage() {
       setIsAutoSignoutEnabled(settings.enabled);
     }
   }, [user]);
+
+  // Update refs when settings change
+  useEffect(() => {
+    if (hasMounted && desktopSelectRef.current && autoSignoutSettings) {
+      desktopSelectRef.current.value = autoSignoutSettings.desktopTimeout;
+    }
+  }, [autoSignoutSettings?.desktopTimeout, hasMounted]);
+
+  useEffect(() => {
+    if (hasMounted && mobileSelectRef.current && autoSignoutSettings) {
+      mobileSelectRef.current.value = autoSignoutSettings.mobileTimeout;
+    }
+  }, [autoSignoutSettings?.mobileTimeout, hasMounted]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -45,45 +68,94 @@ export default function PreferencesPage() {
   };
 
   // Save auto signout settings
-  const handleAutoSignoutChange = (newSettings) => {
-    // Update local state immediately for instant UI feedback
-    setAutoSignoutSettingsState(prev => ({
-      ...prev,
-      ...newSettings
-    }));
+  const handleAutoSignoutChange = (newPartialSettings) => {
+    // Current state (e.g., desktop: 15, mobile: 15)
+    const currentSettings = autoSignoutSettings;
+
+    // Desired state after this change (e.g., desktop: 20, mobile: 15)
+    const intendedSettings = {
+      ...(currentSettings || {}),
+      ...newPartialSettings
+    };
+
+    setAutoSignoutSettingsState(intendedSettings); // Update UI state
+    if (intendedSettings.enabled !== undefined) { // Keep this separate toggle state in sync
+      setIsAutoSignoutEnabled(intendedSettings.enabled);
+    }
 
     // Save to localStorage in the background
     const saveSettings = async () => {
       setIsSaving(true);
       try {
-        if (newSettings.enabled !== undefined) {
-          setAutoSignoutEnabled(newSettings.enabled);
+        if (newPartialSettings.enabled !== undefined) {
+          setAutoSignoutEnabled(newPartialSettings.enabled);
         }
-        
-        if (newSettings.desktopTimeout || newSettings.mobileTimeout) {
+
+        if (newPartialSettings.desktopTimeout !== undefined || newPartialSettings.mobileTimeout !== undefined) {
+          // Determine what to save for desktop:
+          // Use the value from newPartialSettings if it exists, otherwise use the existing value from currentSettings.
+          const desktopToSave = newPartialSettings.desktopTimeout !== undefined
+            ? newPartialSettings.desktopTimeout
+            : (currentSettings ? currentSettings.desktopTimeout : undefined);
+
+          // Determine what to save for mobile:
+          const mobileToSave = newPartialSettings.mobileTimeout !== undefined
+            ? newPartialSettings.mobileTimeout
+            : (currentSettings ? currentSettings.mobileTimeout : undefined);
+
+          console.log("Attempting to save timeouts. Desktop:", desktopToSave, "Mobile:", mobileToSave);
+
           setAutoSignoutTimeouts(
-            newSettings.desktopTimeout || autoSignoutSettings?.desktopTimeout || 20,
-            newSettings.mobileTimeout || autoSignoutSettings?.mobileTimeout || 10
+            desktopToSave,
+            mobileToSave
           );
         }
 
+        // Show success message with animation
         setSaveMessage('Settings saved successfully!');
-        setTimeout(() => setSaveMessage(''), 3000);
+        console.log('Toast: Setting success message and starting animation');
+        setIsToastVisible(false); // Ensure it starts hidden
+        // Small delay to allow component to render in hidden state first
+        setTimeout(() => {
+          console.log('Toast: Making visible');
+          setIsToastVisible(true);
+        }, 10);
+        // Hide after 2.5 seconds with slide-up animation
+        setTimeout(() => {
+          setIsToastVisible(false);
+        }, 2500);
+        // Clear message after slide-up animation completes
+        setTimeout(() => {
+          setSaveMessage('');
+        }, 3000);
       } catch (error) {
         console.error('Error saving auto signout settings:', error);
+        // Show error message with animation
         setSaveMessage('Error saving settings. Please try again.');
-        setTimeout(() => setSaveMessage(''), 3000);
+        setIsToastVisible(false); // Ensure it starts hidden
+        // Small delay to allow component to render in hidden state first
+        setTimeout(() => {
+          setIsToastVisible(true);
+        }, 10);
+        // Hide after 2.5 seconds with slide-up animation
+        setTimeout(() => {
+          setIsToastVisible(false);
+        }, 2500);
+        // Clear message after slide-up animation completes
+        setTimeout(() => {
+          setSaveMessage('');
+        }, 3000);
         
-        // Revert local states on error
-        const currentSettings = getAutoSignoutSettings();
-        setAutoSignoutSettingsState(currentSettings);
-        setIsAutoSignoutEnabled(currentSettings.enabled);
+        // Revert local states on error by re-fetching from the source of truth
+        const freshSettings = getAutoSignoutSettings();
+        setAutoSignoutSettingsState(freshSettings);
+        setIsAutoSignoutEnabled(freshSettings.enabled);
       } finally {
         setIsSaving(false);
       }
     };
 
-    // Run save operation after state has updated
+    // Run save operation
     saveSettings();
   };
 
@@ -134,19 +206,62 @@ export default function PreferencesPage() {
             </button>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Preferences</h1>
           </div>
-          
-          {/* Save status */}
-          {saveMessage && (
-            <div className={`px-4 py-2 rounded-lg text-sm font-medium ${
-              saveMessage.includes('Error') 
-                ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200' 
-                : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200'
-            }`}>
-              {saveMessage}
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Toast Notification */}
+      {saveMessage && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex justify-center">
+          <div className={`mt-4 mx-4 max-w-md w-full transform transition-all duration-500 ease-in-out ${
+            isToastVisible 
+              ? 'translate-y-0 opacity-100' 
+              : '-translate-y-full opacity-0'
+          }`}>
+            <div className={`rounded-lg border shadow-lg p-4 ${
+              saveMessage.includes('Error') 
+                ? 'bg-red-100 dark:bg-red-800 border-red-300 dark:border-red-600' 
+                : 'bg-green-100 dark:bg-green-800 border-green-300 dark:border-green-600'
+            }`}>
+              <div className="flex items-start">
+                <div className={`w-5 h-5 mt-0.5 mr-3 flex-shrink-0 ${
+                  saveMessage.includes('Error') 
+                    ? 'text-red-600 dark:text-red-400' 
+                    : 'text-green-600 dark:text-green-400'
+                }`}>
+                  {saveMessage.includes('Error') ? (
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <h4 className={`text-sm font-medium ${
+                    saveMessage.includes('Error') 
+                      ? 'text-red-800 dark:text-red-200' 
+                      : 'text-green-800 dark:text-green-200'
+                  }`}>
+                    {saveMessage.includes('Error') ? 'Error' : 'Settings Updated'}
+                  </h4>
+                  <p className={`text-sm mt-1 ${
+                    saveMessage.includes('Error') 
+                      ? 'text-red-700 dark:text-red-300' 
+                      : 'text-green-700 dark:text-green-300'
+                  }`}>
+                    {saveMessage.includes('Error') 
+                      ? 'There was a problem saving your settings. Please try again.' 
+                      : 'Your auto signout preferences have been saved successfully.'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
@@ -192,43 +307,68 @@ export default function PreferencesPage() {
                     {/* Desktop Timeout */}
                     <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
                       <div>
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Desktop Timeout</label>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Minutes of inactivity before auto signout on desktop</p>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Desktop Timeout</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Minutes before auto signout on desktop</p>
                       </div>
-                      <select
-                        value={autoSignoutSettings.desktopTimeout || 20}
-                        onChange={(e) => handleAutoSignoutChange({ desktopTimeout: parseInt(e.target.value) })}
-                        disabled={isSaving}
-                        className="w-20 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm"
-                      >
-                        <option value={5}>5 min</option>
-                        <option value={10}>10 min</option>
-                        <option value={15}>15 min</option>
-                        <option value={20}>20 min</option>
-                        <option value={30}>30 min</option>
-                        <option value={60}>1 hour</option>
-                      </select>
+                      {hasMounted ? (
+                        <select
+                          ref={desktopSelectRef}
+                          defaultValue={autoSignoutSettings.desktopTimeout || 20}
+                          onChange={(e) => {
+                            const newDesktop = parseInt(e.target.value);
+                            console.log("Desktop timeout change", { 
+                              from: autoSignoutSettings.desktopTimeout, 
+                              to: newDesktop 
+                            });
+                            handleAutoSignoutChange({ desktopTimeout: newDesktop });
+                          }}
+                          disabled={isSaving}
+                          className="w-20 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm"
+                        >
+                          <option value={5}>5 min</option>
+                          <option value={10}>10 min</option>
+                          <option value={15}>15 min</option>
+                          <option value={20}>20 min</option>
+                          <option value={30}>30 min</option>
+                          <option value={45}>45 min</option>
+                          <option value={60}>1 hour</option>
+                        </select>
+                      ) : (
+                        <div className="w-20 h-8 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
+                      )}
                     </div>
 
                     {/* Mobile Timeout */}
                     <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
                       <div>
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Mobile Timeout</label>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Minutes of inactivity before auto signout on mobile</p>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Mobile Timeout</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Minutes before auto signout on mobile</p>
                       </div>
-                      <select
-                        value={autoSignoutSettings.mobileTimeout || 10}
-                        onChange={(e) => handleAutoSignoutChange({ mobileTimeout: parseInt(e.target.value) })}
-                        disabled={isSaving}
-                        className="w-20 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm"
-                      >
-                        <option value={2}>2 min</option>
-                        <option value={5}>5 min</option>
-                        <option value={10}>10 min</option>
-                        <option value={15}>15 min</option>
-                        <option value={20}>20 min</option>
-                        <option value={30}>30 min</option>
-                      </select>
+                      {hasMounted ? (
+                        <select
+                          ref={mobileSelectRef}
+                          defaultValue={autoSignoutSettings.mobileTimeout || 10}
+                          onChange={(e) => {
+                            const newMobile = parseInt(e.target.value);
+                            console.log("Mobile timeout change", { 
+                              from: autoSignoutSettings.mobileTimeout, 
+                              to: newMobile 
+                            });
+                            handleAutoSignoutChange({ mobileTimeout: newMobile });
+                          }}
+                          disabled={isSaving}
+                          className="w-20 rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-sm"
+                        >
+                          <option value={2}>2 min</option>
+                          <option value={5}>5 min</option>
+                          <option value={10}>10 min</option>
+                          <option value={15}>15 min</option>
+                          <option value={20}>20 min</option>
+                          <option value={30}>30 min</option>
+                        </select>
+                      ) : (
+                        <div className="w-20 h-8 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
+                      )}
                     </div>
 
                     {/* Info Box */}
