@@ -121,7 +121,7 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
         // For iOS, show informative message
         setShowMobileClipboardInfo(true);
         setTimeout(() => {
-          alert(`📱 Copy on iOS Safari:\n\nThe text below will be shown for you to manually select and copy:\n\n"${textToCopy}"\n\nTip: Long press the text above to select it, then choose "Copy" from the menu.`);
+          alert('Text copied to clipboard! On iOS, you may need to manually paste using the "Paste" option in the context menu.');
         }, 100);
         setTimeout(() => {
           setShowMobileClipboardInfo(false);
@@ -191,8 +191,8 @@ export default function StoredTexts({ texts, onToggleAutoDelete, onDeleteNote })
           <div className="flex items-start">
             <span className="text-amber-600 dark:text-amber-400 text-lg mr-2">📱</span>
             <div className="text-sm text-amber-800 dark:text-amber-200">
-              <strong>Mobile Copy Guide:</strong> Due to browser security, automatic copy isn't available. 
-              Long press the text in the alert to select it, then choose "Copy" from the menu.
+              <strong>Mobile Copy Guide:</strong> Due to browser security, automatic copy isn&apos;t available. 
+              Long press the text in the alert to select it, then choose &quot;Copy&quot; from the menu.
             </div>
           </div>
         </div>

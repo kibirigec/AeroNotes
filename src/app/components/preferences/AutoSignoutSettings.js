@@ -139,9 +139,9 @@ const AutoSignoutSettings = ({ settings, onSettingsChange, isSaving }) => {
                 </h3>
                 <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
                   <ul className="list-disc pl-5 space-y-1">
-                    <li>Timer automatically pauses while you're actively typing</li>
+                    <li>Timer automatically pauses while you&apos;re actively typing</li>
                     <li>Any mouse, keyboard, or touch activity resets the timer</li>
-                    <li>You'll get a 2-minute warning before being signed out</li>
+                    <li>You&apos;ll get a 2-minute warning before being signed out</li>
                     <li>Unsaved changes will prevent automatic signout</li>
                     <li>Different timeouts apply based on your device type</li>
                   </ul>
@@ -176,8 +176,13 @@ const AutoSignoutSettings = ({ settings, onSettingsChange, isSaving }) => {
                 Auto Signout Disabled
               </h3>
               <div className="mt-2 text-sm text-amber-700 dark:text-amber-300">
-                Your session will remain active until you manually sign out or close the browser. 
-                For better security, consider enabling auto signout, especially on shared devices.
+                Warning: Disabling auto-signout reduces the security of your account. You&apos;ll need to sign out manually.
+                <button
+                  onClick={() => setShowWarning(false)}
+                  className="text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-orange-300 text-sm ml-2"
+                >
+                  I&apos;ll be careful
+                </button>
               </div>
             </div>
           </div>

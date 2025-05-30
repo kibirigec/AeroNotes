@@ -154,7 +154,7 @@ const ThemeSettings = ({ currentTheme, onThemeChange, isSaving }) => {
             <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
               {currentTheme === 'system' 
                 ? 'The app will automatically switch between light and dark modes based on your device settings.'
-                : `You're using ${currentTheme} mode. You can change this anytime from the preferences.`
+                : `You&apos;re using ${currentTheme} mode. You can change this anytime from the preferences.`
               }
             </div>
           </div>

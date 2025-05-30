@@ -380,7 +380,7 @@ export default function PreferencesPage() {
                         <div>
                           <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">How Auto Signout Works</h4>
                           <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                            The timer resets with any activity (typing, clicking, scrolling). You'll see a warning 60 seconds before auto signout.
+                            The timer resets with any activity (typing, clicking, scrolling). You&apos;ll see a warning 60 seconds before auto signout.
                           </p>
                         </div>
                       </div>

@@ -59,16 +59,16 @@ const AutoSignoutPrompt = ({
           <div className="p-6">
             <div className="mb-6">
               <p className="text-slate-700 dark:text-blue-200 mb-4">
-                Welcome to AeroNotes! For your security, we've enabled automatic signout when you're inactive.
+                Welcome to AeroNotes! For your security, we&apos;ve enabled automatic signout when you&apos;re inactive.
               </p>
               
               <div className="bg-blue-100 dark:bg-[#152047] border border-blue-300 dark:border-blue-700 rounded-xl p-4 mb-4 shadow-sm">
                 <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">How it works:</h4>
                 <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                  <li>• You'll be signed out after <strong>{isMobile ? '10 minutes' : '20 minutes'}</strong> of inactivity</li>
+                  <li>• You&apos;ll be signed out after <strong>{isMobile ? '10 minutes' : '20 minutes'}</strong> of inactivity</li>
                   <li>• Typing, clicking, or scrolling resets the timer</li>
-                  <li>• You'll get a 2-minute warning before signout</li>
-                  <li>• Auto-signout pauses while you're actively editing</li>
+                  <li>• You&apos;ll get a 2-minute warning before signout</li>
+                  <li>• Auto-signout pauses while you&apos;re actively editing</li>
                   <li>• {isMobile ? 'Shorter timeout on mobile' : 'Longer timeout on desktop'} for your convenience</li>
                 </ul>
               </div>

@@ -266,7 +266,7 @@ export default function LandingPage() {
                                 Perfect For Everyone
                             </h2>
                             <p className="text-lg text-slate-600 leading-snug">
-                                Whether you're a student, professional, or just need quick file access
+                                Whether you&apos;re a student, professional, or just need quick file access
                             </p>
                         </div>
 
@@ -368,7 +368,7 @@ export default function LandingPage() {
                                 Ready for Simple File Storage?
                             </h2>
                             <p className="text-lg text-slate-600 mb-8 leading-snug">
-                                Join users who've chosen simplicity over complexity for their file storage needs
+                                Join users who&apos;ve chosen simplicity over complexity for their file storage needs
                             </p>
                             <button 
                                 onClick={launchApp}
@@ -395,7 +395,7 @@ export default function LandingPage() {
                             <h3 className="text-lg font-bold text-slate-800">AeroNotes</h3>
                         </div>
                         <p className="text-slate-600">
-                            Your online flash drive, simplified. Made with ❤️ for people who value simplicity over complexity.
+                            AeroNotes isn&apos;t just a note-taking app—it&apos;s your personal productivity command center.
                         </p>
                     </div>
                 </footer>
