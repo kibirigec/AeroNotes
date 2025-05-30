@@ -6,12 +6,11 @@
 # - Image optimization
 
 [build]
-  command = "npm run build"
+  command = "npm ci && npm run verify-deps && npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
   NPM_VERSION = "10"
-  NPM_FLAGS = "--version"
   NEXT_TELEMETRY_DISABLED = "1"
 
 # Security headers
@@ -38,21 +37,21 @@
 
 # Environment-specific settings
 [context.production]
-  command = "npm run build"
+  command = "npm ci && npm run verify-deps && npm run build"
   
 [context.production.environment]
   NODE_ENV = "production"
   NEXT_TELEMETRY_DISABLED = "1"
 
 [context.deploy-preview]
-  command = "npm run build"
+  command = "npm ci && npm run verify-deps && npm run build"
   
 [context.deploy-preview.environment]
   NODE_ENV = "production"
   NEXT_TELEMETRY_DISABLED = "1"
 
 [context.branch-deploy]
-  command = "npm run build"
+  command = "npm ci && npm run verify-deps && npm run build"
   
 [context.branch-deploy.environment]
   NODE_ENV = "development"
@@ -60,22 +59,4 @@
 
 # Plugin configuration - let this handle everything automatically
 [[plugins]]
-  package = "@netlify/plugin-nextjs"
-
-# Form handling (if needed for contact forms)
-[build.processing]
-  skip_processing = false
-
-[build.processing.css]
-  bundle = true
-  minify = true
-
-[build.processing.js]
-  bundle = true
-  minify = true
-
-[build.processing.html]
-  pretty_urls = true
-
-[build.processing.images]
-  compress = true 
+  package = "@netlify/plugin-nextjs" 

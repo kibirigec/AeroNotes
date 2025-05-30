@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "verify-deps": "node -e \"console.log('Node version:', process.version); console.log('Next.js installed:', require('next/package.json').version);\"",
     "prepare-production": "node scripts/prepare-production.js",
     "fix-console-logs": "node scripts/fix-console-logs.js",
     "deploy-netlify": "node scripts/deploy-netlify.js",
