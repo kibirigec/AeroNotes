@@ -29,7 +29,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@netlify/plugin-nextjs": "^4.41.3",
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.1.8",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.21",
