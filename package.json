@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prepare-production": "node scripts/prepare-production.js",
+    "fix-console-logs": "node scripts/fix-console-logs.js",
+    "deploy-netlify": "node scripts/deploy-netlify.js",
+    "deploy-netlify-prod": "node scripts/deploy-netlify.js --prod"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
@@ -23,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@netlify/plugin-nextjs": "^4.41.3",
     "@tailwindcss/postcss": "^4",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/ws": "^8.18.1",
