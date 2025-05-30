@@ -6,7 +6,7 @@
 # - Image optimization
 
 [build]
-  command = "npm ci && npm run verify-deps && npm run build"
+  command = "npm ci && npm run debug-build && npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
@@ -37,21 +37,21 @@
 
 # Environment-specific settings
 [context.production]
-  command = "npm ci && npm run verify-deps && npm run build"
+  command = "npm ci && npm run build"
   
 [context.production.environment]
   NODE_ENV = "production"
   NEXT_TELEMETRY_DISABLED = "1"
 
 [context.deploy-preview]
-  command = "npm ci && npm run verify-deps && npm run build"
+  command = "npm ci && npm run build"
   
 [context.deploy-preview.environment]
   NODE_ENV = "production"
   NEXT_TELEMETRY_DISABLED = "1"
 
 [context.branch-deploy]
-  command = "npm ci && npm run verify-deps && npm run build"
+  command = "npm ci && npm run build"
   
 [context.branch-deploy.environment]
   NODE_ENV = "development"

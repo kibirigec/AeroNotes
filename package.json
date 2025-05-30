@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "debug-build": "node scripts/debug-build.js",
     "verify-deps": "node -e \"console.log('Node version:', process.version); console.log('Checking dependencies...'); try { require('next'); console.log('✓ Next.js available'); } catch(e) { console.log('✗ Next.js not found'); process.exit(1); }\"",
     "prepare-production": "node scripts/prepare-production.js",
     "fix-console-logs": "node scripts/fix-console-logs.js",
@@ -16,6 +17,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
     "@tailwindcss/postcss": "^4.1.8",
+    "autoprefixer": "^10.4.21",
     "bcryptjs": "^3.0.2",
     "browser-image-compression": "^2.0.2",
     "date-fns": "^4.1.0",
@@ -23,8 +25,10 @@
     "jsonwebtoken": "^9.0.2",
     "next": "15.3.2",
     "node-fetch": "^3.3.2",
+    "postcss": "^8.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "tailwindcss": "^4.1.8",
     "twilio": "^5.6.1"
   },
   "devDependencies": {
@@ -32,11 +36,8 @@
     "@netlify/plugin-nextjs": "^4.41.3",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/ws": "^8.18.1",
-    "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
-    "postcss": "^8.5.4",
-    "supabase": "^2.22.12",
-    "tailwindcss": "^4.1.8"
+    "supabase": "^2.22.12"
   }
 }
