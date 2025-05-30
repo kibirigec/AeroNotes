@@ -1,9 +1,8 @@
 [build]
-  publish = ".next"
   command = "npm run build"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
   NPM_FLAGS = "--version"
   NEXT_TELEMETRY_DISABLED = "1"
 
@@ -49,7 +48,6 @@
   from = "/*"
   to = "/index.html"
   status = 200
-  conditions = {Role = ["admin"], Country = ["!China"]}
 
 # Environment-specific settings
 [context.production]
