@@ -1,16 +1,18 @@
+# Netlify configuration for Next.js app with API routes
+# The @netlify/plugin-nextjs handles:
+# - API routes -> Netlify functions conversion
+# - Client-side routing
+# - Static/dynamic page deployment
+# - Image optimization
+
 [build]
   command = "npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
+  NPM_VERSION = "10"
   NPM_FLAGS = "--version"
   NEXT_TELEMETRY_DISABLED = "1"
-
-# Next.js API routes
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
-  status = 200
 
 # Security headers
 [[headers]]
@@ -23,15 +25,6 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
-# API headers
-[[headers]]
-  for = "/api/*"
-  [headers.values]
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
-    Access-Control-Allow-Credentials = "true"
-    Access-Control-Max-Age = "86400"
-
 # Cache static assets
 [[headers]]
   for = "/_next/static/*"
@@ -42,12 +35,6 @@
   for = "/favicon.ico"
   [headers.values]
     Cache-Control = "public, max-age=86400"
-
-# Handle client-side routing (SPA fallback)
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
 
 # Environment-specific settings
 [context.production]
@@ -71,12 +58,7 @@
   NODE_ENV = "development"
   NEXT_TELEMETRY_DISABLED = "1"
 
-# Functions configuration for API routes
-[functions]
-  directory = ".netlify/functions/"
-  node_bundler = "esbuild"
-
-# Plugin configuration
+# Plugin configuration - let this handle everything automatically
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
